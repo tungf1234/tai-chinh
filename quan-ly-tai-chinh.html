@@ -104,6 +104,7 @@
   <button data-tab="transactions">Giao dịch</button>
   <button data-tab="wallets">Ví</button>
   <button data-tab="debts">Nợ & Cho vay</button>
+  <button data-tab="reports">Báo cáo</button>
   <button data-tab="budgets">Ngân sách</button>
   <button data-tab="settings">Danh mục & Dữ liệu</button>
 </nav>
@@ -117,7 +118,7 @@
       <div class="card stat"><div class="label">Còn lại <span class="mLabel"></span></div><div class="value" id="sNet">0</div></div>
       <div class="card stat"><div class="label">Tổng số dư hiện tại (mọi ví)</div><div class="value" id="sBalance">0</div></div>
       <div class="card stat"><div class="label">Tôi đang nợ</div><div class="value neg" id="sDebt">0</div><div class="muted" style="margin-top:4px">Người khác nợ tôi: <b class="pos" id="sRec">0</b></div></div>
-      <div class="card stat"><div class="label">Tài sản ròng (số dư + được nợ − nợ)</div><div class="value" id="sNetWorth">0</div></div>
+      <div class="card stat"><div class="label">Tài sản ròng (số dư + được nợ − nợ)</div><div class="value" id="sNetWorth">0</div><div class="muted" id="sNwChg" style="margin-top:4px"></div></div>
     </div>
     <div class="card" style="margin-top:16px">
       <h3>Số dư từng ví</h3>
@@ -233,7 +234,13 @@
       </div>
     </div>
     <div class="card" style="margin-top:16px">
-      <h3>Các khoản nợ</h3>
+      <div class="flex" style="justify-content:space-between;margin-bottom:8px;gap:8px">
+        <h3 style="margin:0">Các khoản nợ</h3>
+        <label class="muted">Sắp xếp <select id="dSort">
+          <option value="due">Hạn trả gần nhất</option><option value="new">Ngày vay mới nhất</option><option value="old">Ngày vay cũ nhất</option>
+          <option value="leftDesc">Còn nợ nhiều nhất</option><option value="leftAsc">Còn nợ ít nhất</option><option value="amtDesc">Số tiền vay lớn nhất</option>
+        </select></label>
+      </div>
       <div class="tbl"><table>
         <thead><tr><th>Nơi vay</th><th class="num hide-m">Đã trả</th><th class="num">Còn nợ</th><th class="hide-m">Lãi suất / Hạn</th><th></th></tr></thead>
         <tbody id="debtList"></tbody>
@@ -267,10 +274,54 @@
       </div>
     </div>
     <div class="card" style="margin-top:16px">
-      <h3>Danh sách người nợ tôi</h3>
+      <div class="flex" style="justify-content:space-between;margin-bottom:8px;gap:8px">
+        <h3 style="margin:0">Danh sách người nợ tôi</h3>
+        <label class="muted">Sắp xếp <select id="rSort">
+          <option value="due">Hẹn trả gần nhất</option><option value="new">Ngày cho vay mới nhất</option><option value="old">Ngày cho vay cũ nhất</option>
+          <option value="leftDesc">Còn nợ nhiều nhất</option><option value="leftAsc">Còn nợ ít nhất</option><option value="amtDesc">Số tiền cho vay lớn nhất</option>
+        </select></label>
+      </div>
       <div class="tbl"><table>
         <thead><tr><th>Người nợ</th><th class="num hide-m">Đã thu</th><th class="num">Còn nợ tôi</th><th class="hide-m">Hẹn trả</th><th></th></tr></thead>
         <tbody id="recList"></tbody>
+      </table></div>
+    </div>
+  </section>
+
+  <!-- BÁO CÁO -->
+  <section id="reports" class="tab">
+    <div class="card flex" style="justify-content:space-between;gap:8px">
+      <div><b>Báo cáo tài chính</b> <span class="muted">— tính đến hết <span id="rpEnd"></span> (đổi tháng ở thanh trên cùng)</span></div>
+      <label class="muted">Xem theo <select id="rpRange">
+        <option value="12">12 tháng gần nhất</option><option value="24">24 tháng gần nhất</option><option value="year">Từng năm</option>
+      </select></label>
+    </div>
+    <div class="grid g3 g4" style="margin-top:16px">
+      <div class="card stat"><div class="label">Tài sản ròng</div><div class="value" id="rpNet">0</div><div class="muted" id="rpNetChg" style="margin-top:4px"></div></div>
+      <div class="card stat"><div class="label">Thay đổi từ đầu năm</div><div class="value" id="rpYtd">0</div><div class="muted" id="rpYtdPct" style="margin-top:4px"></div></div>
+      <div class="card stat"><div class="label">Tiết kiệm <span id="rpSaveLbl"></span></div><div class="value" id="rpSave">0</div><div class="muted" id="rpSaveRate" style="margin-top:4px"></div></div>
+      <div class="card stat"><div class="label">Tỷ lệ nợ / tài sản</div><div class="value" id="rpRatio">0</div><div class="muted" style="margin-top:4px">Dưới 50% là an toàn</div></div>
+    </div>
+    <div class="card" style="margin-top:16px">
+      <h3>Tài sản ròng qua thời gian</h3>
+      <svg id="nwChart" width="100%" viewBox="0 0 720 270" preserveAspectRatio="xMidYMid meet"></svg>
+      <p class="muted" style="margin:4px 0 0">Tài sản = số dư các ví + tiền người khác nợ. Tài sản ròng = tài sản − nợ. Rê chuột / chạm vào điểm để xem số chính xác.</p>
+    </div>
+    <div class="grid g2" style="margin-top:16px">
+      <div class="card">
+        <h3>Tiết kiệm mỗi kỳ (thu − chi)</h3>
+        <svg id="saveChart" width="100%" viewBox="0 0 460 240" preserveAspectRatio="xMidYMid meet"></svg>
+      </div>
+      <div class="card">
+        <h3>Cơ cấu tài sản & nợ hiện tại</h3>
+        <div id="compo"></div>
+      </div>
+    </div>
+    <div class="card" style="margin-top:16px">
+      <h3>Tổng kết theo năm</h3>
+      <div class="tbl"><table>
+        <thead><tr><th>Năm</th><th class="num">Thu</th><th class="num">Chi</th><th class="num">Tiết kiệm</th><th class="num hide-m">Tỷ lệ TK</th><th class="num">Tài sản ròng cuối năm</th><th class="num hide-m">Thay đổi</th></tr></thead>
+        <tbody id="yearTable"></tbody>
       </table></div>
     </div>
   </section>
@@ -683,6 +734,23 @@ document.addEventListener('click', e => {
   ({ edit: startEdit, del: delTx, delcat: delCat, wedit: startWalletEdit, wdel: delWallet, dedit: startDebtEdit, ddel: delDebt, dpay: startPay, redit: startRecEdit, rdel: delRec, rcol: startCollect, rpdel: delCollect })[act]?.(id);
 });
 
+// ---------- Sắp xếp bảng nợ / cho vay (khoản đã trả hết luôn nằm cuối) ----------
+function sortItems(list, mode, g) {
+  const cmp = {
+    due: (a, b) => (g.due(a) || '9').localeCompare(g.due(b) || '9'),
+    new: (a, b) => g.date(b).localeCompare(g.date(a)),
+    old: (a, b) => g.date(a).localeCompare(g.date(b)),
+    leftDesc: (a, b) => g.left(b) - g.left(a),
+    leftAsc: (a, b) => g.left(a) - g.left(b),
+    amtDesc: (a, b) => g.amount(b) - g.amount(a),
+  }[mode] || (() => 0);
+  return [...list].sort((a, b) => !g.left(a) - !g.left(b) || cmp(a, b));
+}
+['dSort', 'rSort'].forEach(id => {
+  const saved = localStorage.getItem('pfm-' + id); if (saved) $(id).value = saved;
+  $(id).onchange = () => { localStorage.setItem('pfm-' + id, $(id).value); id === 'dSort' ? renderDebts() : renderRecs(); };
+});
+
 // ---------- Người khác nợ tôi ----------
 let editingRec = null;
 $('recForm').onsubmit = e => {
@@ -741,7 +809,7 @@ async function delCollect(key) {
 function renderRecs() {
   const total = totalRec();
   $('dRec').textContent = fmt(total);
-  const list = [...data.receivables].sort((a, b) => !recLeft(a) - !recLeft(b) || (a.due || '9').localeCompare(b.due || '9'));
+  const list = sortItems(data.receivables, $('rSort').value, { date: r => r.date || '', due: r => r.due, amount: r => r.amount, left: recLeft });
   $('recList').innerHTML = list.length ? list.map(r => {
     const got = recGot(r), left = recLeft(r), pct = Math.min(100, got / r.amount * 100);
     const overdue = left && r.due && r.due < today();
@@ -855,7 +923,7 @@ function renderDebts() {
   $('dTotal').textContent = fmt(debt);
   $('dAssets').textContent = fmt(bal); $('dAssets').className = 'value ' + (bal >= 0 ? 'pos' : 'neg');
   $('dNet').textContent = fmt(net); $('dNet').className = 'value ' + (net >= 0 ? 'pos' : 'neg');
-  const list = [...data.debts].sort((a, b) => !debtLeft(a.id) - !debtLeft(b.id) || (a.due || '9').localeCompare(b.due || '9'));
+  const list = sortItems(data.debts, $('dSort').value, { date: d => d.start || '', due: d => d.due, amount: d => d.principal, left: d => debtLeft(d.id) });
   $('debtList').innerHTML = list.length ? list.map(d => {
     const paid = debtPaid(d.id), left = debtLeft(d.id), pct = Math.min(100, paid / d.principal * 100);
     const overdue = left && d.due && d.due < today();
@@ -892,6 +960,9 @@ function renderDashboard() {
   const debt = totalDebt(), nw = netWorth();
   $('sDebt').textContent = fmt(debt);
   $('sRec').textContent = fmt(totalRec());
+  { const [yy, mm] = m.split('-').map(Number), pd = new Date(yy, mm - 2, 1);
+    const a = snapshotAt(m + '-31').net, b = snapshotAt(`${pd.getFullYear()}-${String(pd.getMonth() + 1).padStart(2, '0')}-31`).net;
+    $('sNwChg').innerHTML = `<span class="${a >= b ? 'pos' : 'neg'}">${signed(a - b)}</span> trong T${m.slice(5)} · <a href="#" onclick="showTab('reports');return false">Xem biểu đồ</a>`; }
   $('sNetWorth').textContent = fmt(nw); $('sNetWorth').className = 'value ' + (nw >= 0 ? 'pos' : 'neg');
 
   // Biểu đồ tròn
@@ -951,6 +1022,157 @@ function renderDashboard() {
 
   const recent = sorted(data.transactions).slice(0, 8);
   $('recent').innerHTML = recent.length ? recent.map(txRow).join('') : '<tr><td class="empty">Chưa có giao dịch. Vào tab "Giao dịch" để thêm.</td></tr>';
+}
+
+// ---------- Báo cáo ----------
+// Ảnh chụp tài chính tại cuối ngày D ('YYYY-MM-DD')
+function snapshotAt(D) {
+  let bal = data.wallets.reduce((s, w) => s + (w.initial || 0), 0);
+  for (const t of data.transactions) if (t.date <= D) {
+    if (t.type === 'income') bal += t.amount;
+    else if (t.type === 'expense' || t.type === 'debtpay') bal -= t.amount;
+  }
+  let debt = 0, rec = 0;
+  for (const d of data.debts) {
+    if ((d.start || '') > D) continue;
+    if (d.walletId) bal += d.principal; // tiền vay đã nhận vào ví
+    debt += Math.max(0, d.principal - (d.paidBefore || 0) - debtPays(d.id).filter(t => t.date <= D).reduce((s, t) => s + t.amount, 0));
+  }
+  for (const r of data.receivables) if ((r.date || '') <= D)
+    rec += Math.max(0, r.amount - (r.receivedBefore || 0) - r.payments.filter(p => p.date <= D).reduce((s, p) => s + p.amount, 0));
+  return { bal, rec, debt, assets: bal + rec, net: bal + rec - debt };
+}
+const flowOf = prefix => {
+  let inc = 0, exp = 0;
+  for (const t of data.transactions) if (t.date.startsWith(prefix)) { if (t.type === 'income') inc += t.amount; else if (t.type === 'expense') exp += t.amount; }
+  return { inc, exp, save: inc - exp };
+};
+const firstYear = () => Math.min(...[...data.transactions.map(t => t.date), ...data.debts.map(d => d.start || ''), ...data.receivables.map(r => r.date || '')]
+  .filter(Boolean).map(d => +d.slice(0, 4)), +today().slice(0, 4));
+const shortMoney = n => {
+  const a = Math.abs(n), s = n < 0 ? '−' : '';
+  const t = a >= 1e9 ? +(a / 1e9).toFixed(2) + ' tỷ' : a >= 1e6 ? +(a / 1e6).toFixed(1) + ' tr' : a >= 1e3 ? Math.round(a / 1e3) + 'k' : String(Math.round(a));
+  return s + t.replace('.', ',');
+};
+const signed = n => (n > 0 ? '▲ +' : n < 0 ? '▼ −' : '') + fmt(Math.abs(n));
+function niceScale(min, max, n = 4) {
+  if (max - min < 1) { max += 1e6; min = Math.min(min, 0); }
+  const raw = (max - min) / n, mag = 10 ** Math.floor(Math.log10(raw));
+  const step = [1, 2, 2.5, 5, 10].map(f => f * mag).find(s => s >= raw);
+  const lo = Math.floor(min / step) * step, hi = Math.ceil(max / step) * step, ticks = [];
+  for (let v = lo; v <= hi + step / 2; v += step) ticks.push(v);
+  return { lo, hi, ticks };
+}
+// Biểu đồ đường: series = [{name, color, values, width, dash, area}]
+function lineChart(svg, labels, series) {
+  const W = 720, H = 270, L = 62, R = 14, T = 30, B = 28, n = labels.length;
+  const { lo, hi, ticks } = niceScale(Math.min(0, ...series.flatMap(s => s.values)), Math.max(0, ...series.flatMap(s => s.values)));
+  const x = i => n === 1 ? (L + W - R) / 2 : L + i * (W - L - R) / (n - 1);
+  const y = v => T + (hi - v) / (hi - lo) * (H - T - B);
+  let s = '';
+  ticks.forEach(v => s += `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" stroke="${v === 0 ? '#9ca3af' : '#eef0f3'}"/>` +
+    `<text x="${L - 6}" y="${y(v) + 4}" text-anchor="end" font-size="11" fill="#6b7280">${shortMoney(v)}</text>`);
+  const every = Math.ceil(n / 12);
+  labels.forEach((l, i) => { if (i % every === 0 || i === n - 1) s += `<text x="${x(i)}" y="${H - 8}" text-anchor="middle" font-size="11" fill="#6b7280">${l}</text>`; });
+  series.forEach(se => {
+    const pts = se.values.map((v, i) => `${x(i)},${y(v)}`).join(' ');
+    if (se.area) s += `<polygon points="${x(0)},${y(0)} ${pts} ${x(n - 1)},${y(0)}" fill="${se.color}" opacity=".08"/>`;
+    s += `<polyline points="${pts}" fill="none" stroke="${se.color}" stroke-width="${se.width || 2}" ${se.dash ? `stroke-dasharray="${se.dash}"` : ''} stroke-linejoin="round"/>`;
+    se.values.forEach((v, i) => s += `<circle cx="${x(i)}" cy="${y(v)}" r="${se.width > 2 ? 4 : 3}" fill="#fff" stroke="${se.color}" stroke-width="2"><title>${se.name} ${labels[i]}: ${fmt(v)}</title></circle>`);
+  });
+  let lx = W - R;
+  [...series].reverse().forEach(se => {
+    const w = se.name.length * 6.5 + 22; lx -= w;
+    s += `<rect x="${lx}" y="9" width="12" height="4" rx="1" fill="${se.color}"/><text x="${lx + 16}" y="15" font-size="11">${se.name}</text>`;
+  });
+  svg.innerHTML = s;
+}
+// Biểu đồ cột âm/dương
+function signedBars(svg, labels, values, tips) {
+  const W = 460, H = 240, L = 56, R = 8, T = 14, B = 26, n = labels.length;
+  const { lo, hi, ticks } = niceScale(Math.min(0, ...values), Math.max(0, ...values));
+  const y = v => T + (hi - v) / (hi - lo) * (H - T - B);
+  const cw = (W - L - R) / n, bw = Math.min(28, cw * 0.6);
+  let s = '';
+  ticks.forEach(v => s += `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" stroke="${v === 0 ? '#9ca3af' : '#eef0f3'}"/>` +
+    `<text x="${L - 6}" y="${y(v) + 4}" text-anchor="end" font-size="10" fill="#6b7280">${shortMoney(v)}</text>`);
+  const every = Math.ceil(n / 12);
+  values.forEach((v, i) => {
+    const cx = L + i * cw + cw / 2, top = y(Math.max(v, 0)), h = Math.abs(y(v) - y(0));
+    s += `<rect x="${cx - bw / 2}" y="${top}" width="${bw}" height="${Math.max(h, v ? 1 : 0)}" rx="2" fill="${v >= 0 ? '#16a34a' : '#dc2626'}"><title>${tips[i]}</title></rect>`;
+    if (i % every === 0 || i === n - 1) s += `<text x="${cx}" y="${H - 8}" text-anchor="middle" font-size="10" fill="#6b7280">${labels[i]}</text>`;
+  });
+  svg.innerHTML = s;
+}
+$('rpRange').onchange = () => { localStorage.setItem('pfm-rpRange', $('rpRange').value); renderReports(); };
+if (localStorage.getItem('pfm-rpRange')) $('rpRange').value = localStorage.getItem('pfm-rpRange');
+
+function renderReports() {
+  const m = monthInput.value, [Y, M] = m.split('-').map(Number), mode = $('rpRange').value;
+  $('rpEnd').textContent = `T${m.slice(5)}/${Y}`;
+  // Các kỳ: [{label, key (tiền tố ngày), end}]
+  let periods = [];
+  if (mode === 'year') {
+    for (let y = Math.max(firstYear(), Y - 9); y <= Y; y++) periods.push({ label: String(y), key: String(y), end: y === Y ? m + '-31' : `${y}-12-31` });
+  } else {
+    for (let i = +mode - 1; i >= 0; i--) {
+      const d = new Date(Y, M - 1 - i, 1), k = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      periods.push({ label: `${k.slice(5)}/${k.slice(2, 4)}`, key: k, end: k + '-31' });
+    }
+  }
+  const snaps = periods.map(p => snapshotAt(p.end));
+  lineChart($('nwChart'), periods.map(p => p.label), [
+    { name: 'Tổng tài sản', color: '#2563eb', values: snaps.map(s => s.assets), dash: '5 4' },
+    { name: 'Nợ', color: '#dc2626', values: snaps.map(s => s.debt), dash: '5 4' },
+    { name: 'Tài sản ròng', color: '#7c3aed', values: snaps.map(s => s.net), width: 3, area: true },
+  ]);
+  const flows = periods.map(p => flowOf(p.key));
+  signedBars($('saveChart'), periods.map(p => p.label), flows.map(f => f.save),
+    flows.map((f, i) => `${periods[i].label}: thu ${fmt(f.inc)} − chi ${fmt(f.exp)} = ${fmt(f.save)}${f.inc ? ` (${Math.round(f.save / f.inc * 100)}%)` : ''}`));
+
+  // Thẻ số liệu
+  const cur = snaps[snaps.length - 1], prev = snapshotAt(mode === 'year' ? `${Y - 1}-12-31` : (() => { const d = new Date(Y, M - 2, 1); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-31`; })());
+  const setV = (id, v) => { $(id).textContent = fmt(v); $(id).className = 'value ' + (v >= 0 ? 'pos' : 'neg'); };
+  setV('rpNet', cur.net);
+  $('rpNetChg').innerHTML = `<span class="${cur.net >= prev.net ? 'pos' : 'neg'}">${signed(cur.net - prev.net)}</span> so với ${mode === 'year' ? 'cuối năm trước' : 'tháng trước'}`;
+  const startY = snapshotAt(`${Y - 1}-12-31`), ytd = cur.net - startY.net;
+  setV('rpYtd', ytd);
+  $('rpYtd').textContent = (ytd > 0 ? '+' : ytd < 0 ? '−' : '') + fmt(Math.abs(ytd));
+  $('rpYtdPct').textContent = startY.net > 0 ? `${ytd >= 0 ? '+' : ''}${(ytd / startY.net * 100).toFixed(1).replace('.', ',')}% so với cuối ${Y - 1}` : `Tài sản ròng cuối ${Y - 1}: ${fmt(startY.net)}`;
+  const f = mode === 'year' ? flowOf(String(Y)) : flowOf(m);
+  $('rpSaveLbl').textContent = mode === 'year' ? `năm ${Y}` : `T${m.slice(5)}/${Y}`;
+  setV('rpSave', f.save);
+  $('rpSaveRate').textContent = f.inc ? `Tỷ lệ tiết kiệm ${Math.round(f.save / f.inc * 100)}% thu nhập` : 'Chưa có thu nhập';
+  const ratio = cur.assets > 0 ? cur.debt / cur.assets * 100 : (cur.debt ? Infinity : 0);
+  $('rpRatio').textContent = isFinite(ratio) ? Math.round(ratio) + '%' : '—';
+  $('rpRatio').className = 'value ' + (ratio < 50 ? 'pos' : ratio <= 100 ? '' : 'neg');
+  if (ratio >= 50 && ratio <= 100) $('rpRatio').style.color = 'var(--amber)'; else $('rpRatio').style.color = '';
+
+  // Cơ cấu hiện tại
+  const items = [
+    ...data.wallets.map(w => ({ name: w.name, v: walletBalance(w.id), color: w.color })),
+    ...(totalRec() ? [{ name: 'Người khác nợ tôi', v: totalRec(), color: '#0d9488' }] : []),
+    ...data.debts.filter(d => debtLeft(d.id)).map(d => ({ name: 'Nợ: ' + d.name, v: -debtLeft(d.id), color: '#dc2626' })),
+  ];
+  const mx = Math.max(1, ...items.map(i => Math.abs(i.v)));
+  $('compo').innerHTML = items.length ? items.map(i => `<div style="margin-bottom:8px">
+      <div class="flex" style="justify-content:space-between;gap:8px;font-size:13px"><span>${esc(i.name)}</span><b class="${i.v < 0 ? 'neg' : ''}">${fmt(i.v)}</b></div>
+      <div class="bar"><div style="width:${Math.abs(i.v) / mx * 100}%;background:${i.v < 0 ? '#dc2626' : i.color}"></div></div></div>`).join('') +
+    `<div class="flex" style="justify-content:space-between;border-top:1px solid var(--border);padding-top:8px;margin-top:4px"><b>Tài sản ròng</b><b class="${netWorth() >= 0 ? 'pos' : 'neg'}">${fmt(netWorth())}</b></div>`
+    : '<div class="empty">Chưa có dữ liệu</div>';
+
+  // Bảng theo năm
+  const thisY = +today().slice(0, 4);
+  let rows = '', prevNet = snapshotAt(`${firstYear() - 1}-12-31`).net;
+  for (let y = firstYear(); y <= thisY; y++) {
+    const fy = flowOf(String(y)), net = snapshotAt(`${y}-12-31`).net, chg = net - prevNet;
+    rows = `<tr><td><b>${y}</b></td><td class="num pos">${fmt(fy.inc)}</td><td class="num neg">${fmt(fy.exp)}</td>
+      <td class="num"><b class="${fy.save >= 0 ? 'pos' : 'neg'}">${fmt(fy.save)}</b></td>
+      <td class="num hide-m">${fy.inc ? Math.round(fy.save / fy.inc * 100) + '%' : '—'}</td>
+      <td class="num"><b>${fmt(net)}</b></td><td class="num hide-m ${chg >= 0 ? 'pos' : 'neg'}">${signed(chg)}</td></tr>` + rows;
+    prevNet = net;
+  }
+  $('yearTable').innerHTML = rows;
 }
 
 // ---------- Ngân sách ----------
@@ -1025,7 +1247,7 @@ $('resetAll').onclick = async () => {
   data = structuredClone(DEFAULT); save(); toast('Đã xóa toàn bộ dữ liệu');
 };
 
-function render() { fillSelects(); renderDashboard(); renderWallets(); renderDebts(); renderRecs(); renderTxList(); renderBudgets(); renderCats(); }
+function render() { fillSelects(); renderDashboard(); renderWallets(); renderDebts(); renderRecs(); renderReports(); renderTxList(); renderBudgets(); renderCats(); }
 $('cloudBadge').onclick = () => { showTab('settings'); window.scrollTo(0, 0); };
 $('cloudLogin').onclick = () => window.cloudLogin?.();
 $('cloudLogout').onclick = () => window.cloudLogout?.();

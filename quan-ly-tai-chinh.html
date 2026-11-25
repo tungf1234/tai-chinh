@@ -27,6 +27,7 @@
   .g3 { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
   .g2 { grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); }
   .gw { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
+  .g3.g4 { grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }
   .card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
   .card h3 { margin: 0 0 12px; font-size: 15px; }
   .stat .label { color: var(--muted); font-size: 13px; }
@@ -102,7 +103,7 @@
   <button data-tab="dashboard" class="active">Tổng quan</button>
   <button data-tab="transactions">Giao dịch</button>
   <button data-tab="wallets">Ví</button>
-  <button data-tab="debts">Nợ</button>
+  <button data-tab="debts">Nợ & Cho vay</button>
   <button data-tab="budgets">Ngân sách</button>
   <button data-tab="settings">Danh mục & Dữ liệu</button>
 </nav>
@@ -115,8 +116,8 @@
       <div class="card stat"><div class="label">Chi tiêu <span class="mLabel"></span></div><div class="value neg" id="sExpense">0</div></div>
       <div class="card stat"><div class="label">Còn lại <span class="mLabel"></span></div><div class="value" id="sNet">0</div></div>
       <div class="card stat"><div class="label">Tổng số dư hiện tại (mọi ví)</div><div class="value" id="sBalance">0</div></div>
-      <div class="card stat"><div class="label">Tổng nợ còn lại</div><div class="value neg" id="sDebt">0</div></div>
-      <div class="card stat"><div class="label">Tài sản ròng (số dư − nợ)</div><div class="value" id="sNetWorth">0</div></div>
+      <div class="card stat"><div class="label">Tôi đang nợ</div><div class="value neg" id="sDebt">0</div><div class="muted" style="margin-top:4px">Người khác nợ tôi: <b class="pos" id="sRec">0</b></div></div>
+      <div class="card stat"><div class="label">Tài sản ròng (số dư + được nợ − nợ)</div><div class="value" id="sNetWorth">0</div></div>
     </div>
     <div class="card" style="margin-top:16px">
       <h3>Số dư từng ví</h3>
@@ -194,10 +195,11 @@
 
   <!-- NỢ -->
   <section id="debts" class="tab">
-    <div class="grid g3">
-      <div class="card stat"><div class="label">Tổng nợ còn lại</div><div class="value neg" id="dTotal">0</div></div>
+    <div class="grid g3 g4">
       <div class="card stat"><div class="label">Tổng số dư các ví</div><div class="value" id="dAssets">0</div></div>
-      <div class="card stat"><div class="label">Tài sản ròng (số dư − nợ)</div><div class="value" id="dNet">0</div></div>
+      <div class="card stat"><div class="label">Người khác nợ tôi</div><div class="value pos" id="dRec">0</div></div>
+      <div class="card stat"><div class="label">Tôi đang nợ</div><div class="value neg" id="dTotal">0</div></div>
+      <div class="card stat"><div class="label">Tài sản ròng (số dư + được nợ − nợ)</div><div class="value" id="dNet">0</div></div>
     </div>
     <div class="grid g2" style="margin-top:16px">
       <div class="card">
@@ -235,6 +237,40 @@
       <div class="tbl"><table>
         <thead><tr><th>Nơi vay</th><th class="num hide-m">Đã trả</th><th class="num">Còn nợ</th><th class="hide-m">Lãi suất / Hạn</th><th></th></tr></thead>
         <tbody id="debtList"></tbody>
+      </table></div>
+    </div>
+
+    <h2 style="font-size:17px;margin:28px 0 12px">🤝 Người khác nợ tôi</h2>
+    <div class="grid g2">
+      <div class="card">
+        <h3 id="rFormTitle">Thêm khoản cho vay</h3>
+        <form class="row" id="recForm">
+          <label class="wide" style="flex:1;min-width:200px">Người nợ<input id="rName" required placeholder="VD: Anh Tuấn, bạn Lan"></label>
+          <label>Số tiền (đ)<input id="rAmount" type="text" inputmode="numeric" required placeholder="5.000.000" style="width:140px"></label>
+          <label>Đã thu trước đó (đ)<input id="rGot" type="text" inputmode="numeric" placeholder="0" style="width:140px"></label>
+          <label>Ngày cho vay<input id="rDate" type="date"></label>
+          <label>Hẹn trả<input id="rDue" type="date"></label>
+          <label class="wide" style="flex:1;min-width:160px">Ghi chú<input id="rNote" type="text"></label>
+          <button class="btn" type="submit" id="rSubmit">Thêm</button>
+          <button class="btn sec" type="button" id="rCancel" style="display:none">Hủy</button>
+        </form>
+      </div>
+      <div class="card">
+        <h3>Ghi một lần được trả</h3>
+        <form class="row" id="colForm">
+          <label class="wide" style="flex:1;min-width:200px">Người trả<select id="cRec"></select></label>
+          <label>Số tiền (đ)<input id="cAmount" type="text" inputmode="numeric" placeholder="0" style="width:130px"></label>
+          <label>Ngày<input id="cDate" type="date"></label>
+          <button class="btn" type="submit">Ghi</button>
+        </form>
+        <p class="muted" style="margin-bottom:0">Khoản cho vay <b>chỉ tính vào tài sản ròng</b>, không làm thay đổi số dư ví. Khi được trả tiền, ghi ở đây để giảm số còn nợ; nếu muốn số tiền đó vào ví, hãy thêm giao dịch <b>Thu</b> hoặc sửa số dư ví.</p>
+      </div>
+    </div>
+    <div class="card" style="margin-top:16px">
+      <h3>Danh sách người nợ tôi</h3>
+      <div class="tbl"><table>
+        <thead><tr><th>Người nợ</th><th class="num hide-m">Đã thu</th><th class="num">Còn nợ tôi</th><th class="hide-m">Hẹn trả</th><th></th></tr></thead>
+        <tbody id="recList"></tbody>
       </table></div>
     </div>
   </section>
@@ -329,6 +365,7 @@ const DEFAULT = {
   wallets: DEFAULT_WALLETS,
   transactions: [],
   debts: [],
+  receivables: [],
   budgets: {}
 };
 
@@ -336,6 +373,8 @@ const DEFAULT = {
 function migrate(d) {
   d.budgets = d.budgets || {};
   if (!Array.isArray(d.debts)) d.debts = [];
+  if (!Array.isArray(d.receivables)) d.receivables = [];
+  d.receivables.forEach(r => { if (!Array.isArray(r.payments)) r.payments = []; });
   if (!Array.isArray(d.wallets) || !d.wallets.length) d.wallets = structuredClone(DEFAULT_WALLETS);
   const first = d.wallets[0].id;
   d.transactions.forEach(t => { if (!t.walletId) t.walletId = first; });
@@ -419,12 +458,20 @@ const debtPays = id => data.transactions.filter(t => t.type === 'debtpay' && t.d
 const debtPaid = id => (debtOf(id)?.paidBefore || 0) + debtPays(id).reduce((s, t) => s + t.amount, 0);
 const debtLeft = id => Math.max(0, (debtOf(id)?.principal || 0) - debtPaid(id));
 const totalDebt = () => data.debts.reduce((s, d) => s + debtLeft(d.id), 0);
+// Người khác nợ tôi (không tính vào ví, chỉ tính vào tài sản ròng)
+const recOf = id => data.receivables.find(r => r.id === id);
+const recGot = r => (r.receivedBefore || 0) + r.payments.reduce((s, p) => s + p.amount, 0);
+const recLeft = r => Math.max(0, r.amount - recGot(r));
+const totalRec = () => data.receivables.reduce((s, r) => s + recLeft(r), 0);
+const netWorth = () => totalBalance() + totalRec() - totalDebt();
 
 const monthInput = $('month');
 monthInput.value = today().slice(0, 7);
 $('txDate').value = today();
 $('pDate').value = today();
 $('dStart').value = today();
+$('rDate').value = today();
+$('cDate').value = today();
 $('thisMonth').onclick = () => { monthInput.value = today().slice(0, 7); render(); };
 
 // Tabs
@@ -435,7 +482,7 @@ function showTab(name) {
 }
 
 // Định dạng số tiền khi gõ
-['txAmount', 'wBalance', 'dPrincipal', 'dPaid', 'pAmount', 'pInterest'].forEach(id => $(id).addEventListener('input', e => {
+['txAmount', 'wBalance', 'dPrincipal', 'dPaid', 'pAmount', 'pInterest', 'rAmount', 'rGot', 'cAmount'].forEach(id => $(id).addEventListener('input', e => {
   const n = parseAmt(e.target.value);
   e.target.value = n < 0 ? '-' + fmtInput(-n) : (e.target.value.trim() === '-' ? '-' : fmtInput(n));
 }));
@@ -461,6 +508,8 @@ function fillSelects() {
     const left = debtLeft(d.id);
     return `<option value="${d.id}">${esc(d.name)}${left ? ' — còn ' + fmt(left) : ' (đã trả hết)'}</option>`;
   }).join(''));
+  keep($('cRec'), [...data.receivables].sort((a, b) => !recLeft(a) - !recLeft(b)).map(r =>
+    `<option value="${r.id}">${esc(r.name)}${recLeft(r) ? ' — còn ' + fmt(recLeft(r)) : ' (đã trả hết)'}</option>`).join(''));
 }
 $('txType').onchange = fillSelects;
 $('txWallet').onchange = fillSelects;
@@ -631,8 +680,86 @@ function renderWallets() {
 document.addEventListener('click', e => {
   const b = e.target.closest('[data-act]'); if (!b) return;
   const { act, id } = b.dataset;
-  ({ edit: startEdit, del: delTx, delcat: delCat, wedit: startWalletEdit, wdel: delWallet, dedit: startDebtEdit, ddel: delDebt, dpay: startPay })[act]?.(id);
+  ({ edit: startEdit, del: delTx, delcat: delCat, wedit: startWalletEdit, wdel: delWallet, dedit: startDebtEdit, ddel: delDebt, dpay: startPay, redit: startRecEdit, rdel: delRec, rcol: startCollect, rpdel: delCollect })[act]?.(id);
 });
+
+// ---------- Người khác nợ tôi ----------
+let editingRec = null;
+$('recForm').onsubmit = e => {
+  e.preventDefault();
+  const r = { name: $('rName').value.trim(), amount: Math.abs(parseAmt($('rAmount').value)), receivedBefore: Math.abs(parseAmt($('rGot').value)),
+    date: $('rDate').value || today(), due: $('rDue').value || '', note: $('rNote').value.trim() };
+  if (!r.name || !r.amount) return toast('Nhập tên người nợ và số tiền');
+  if (editingRec) { Object.assign(recOf(editingRec), r); toast('Đã lưu'); }
+  else { data.receivables.push({ id: uid(), ...r, payments: [] }); toast(`Đã thêm — ${r.name} nợ bạn ${fmt(r.amount - r.receivedBefore)}`); }
+  cancelRecEdit();
+  save();
+};
+function startRecEdit(id) {
+  const r = recOf(id);
+  editingRec = id;
+  $('rName').value = r.name; $('rAmount').value = fmtInput(r.amount); $('rGot').value = fmtInput(r.receivedBefore || 0);
+  $('rDate').value = r.date || ''; $('rDue').value = r.due || ''; $('rNote').value = r.note || '';
+  $('rFormTitle').textContent = 'Sửa khoản cho vay'; $('rSubmit').textContent = 'Lưu'; $('rCancel').style.display = '';
+  showTab('debts'); $('recForm').scrollIntoView({ block: 'center' });
+}
+function cancelRecEdit() {
+  editingRec = null;
+  ['rName', 'rAmount', 'rGot', 'rDue', 'rNote'].forEach(k => $(k).value = '');
+  $('rDate').value = today();
+  $('rFormTitle').textContent = 'Thêm khoản cho vay'; $('rSubmit').textContent = 'Thêm'; $('rCancel').style.display = 'none';
+}
+$('rCancel').onclick = cancelRecEdit;
+async function delRec(id) {
+  const r = recOf(id);
+  if (!await ask(`Xóa khoản "${r.name}" nợ bạn ${fmt(r.amount)}?`)) return;
+  data.receivables = data.receivables.filter(x => x.id !== id);
+  if (editingRec === id) cancelRecEdit();
+  save(); toast('Đã xóa');
+}
+function startCollect(id) {
+  $('cRec').value = id;
+  showTab('debts'); $('colForm').scrollIntoView({ block: 'center' }); $('cAmount').focus();
+}
+$('colForm').onsubmit = e => {
+  e.preventDefault();
+  const r = recOf($('cRec').value), amount = Math.abs(parseAmt($('cAmount').value));
+  if (!r) return toast('Hãy thêm khoản cho vay trước');
+  if (!amount) return toast('Nhập số tiền được trả');
+  r.payments.push({ id: uid(), date: $('cDate').value || today(), amount });
+  $('cAmount').value = ''; $('cDate').value = today();
+  save();
+  toast(recLeft(r) ? `Đã ghi — ${r.name} còn nợ ${fmt(recLeft(r))}` : `🎉 ${r.name} đã trả hết`);
+};
+async function delCollect(key) {
+  const [rid, pid] = key.split(':'), r = recOf(rid), p = r?.payments.find(p => p.id === pid);
+  if (!p || !await ask(`Xóa lần ${r.name} trả ${fmt(p.amount)} ngày ${dmy(p.date)}?`)) return;
+  r.payments = r.payments.filter(x => x.id !== pid);
+  save();
+}
+
+function renderRecs() {
+  const total = totalRec();
+  $('dRec').textContent = fmt(total);
+  const list = [...data.receivables].sort((a, b) => !recLeft(a) - !recLeft(b) || (a.due || '9').localeCompare(b.due || '9'));
+  $('recList').innerHTML = list.length ? list.map(r => {
+    const got = recGot(r), left = recLeft(r), pct = Math.min(100, got / r.amount * 100);
+    const overdue = left && r.due && r.due < today();
+    const hist = [...r.payments].sort((a, b) => b.date.localeCompare(a.date)).map(p =>
+      `<span style="white-space:nowrap">${dmy(p.date).slice(0, 5)}: +${fmt(p.amount)}<button class="link" style="padding:0 4px" title="Xóa lần trả này" data-act="rpdel" data-id="${r.id}:${p.id}">×</button></span>`).join(' · ');
+    return `<tr style="${left ? '' : 'opacity:.6'}">
+      <td><b>${esc(r.name)}</b>${left ? '' : ' <span class="pill" style="background:#dcfce7;color:#166534">Đã trả hết</span>'}${overdue ? ' <span class="pill" style="background:#fee2e2;color:#991b1b">Quá hạn</span>' : ''}
+        <div class="muted" style="font-size:11px;margin-top:2px">Cho vay ${fmt(r.amount)} · ${dmy(r.date)}${r.due ? ' · hẹn ' + dmy(r.due) : ''}${r.note ? ' · ' + esc(r.note) : ''}</div>
+        <div class="bar" style="max-width:260px"><div style="width:${pct}%;background:var(--green)"></div></div>
+        <div class="muted" style="font-size:11px">Đã thu ${Math.round(pct)}%${hist ? ' — ' + hist : ''}</div></td>
+      <td class="num hide-m">${fmt(got)}</td>
+      <td class="num"><b class="${left ? 'pos' : ''}">${fmt(left)}</b></td>
+      <td class="hide-m">${r.due ? dmy(r.due) : '<span class="muted">—</span>'}</td>
+      <td class="num">${left ? `<button class="link edit" data-act="rcol" data-id="${r.id}">Thu</button>` : ''}<button class="link edit" data-act="redit" data-id="${r.id}">Sửa</button><button class="link" data-act="rdel" data-id="${r.id}">Xóa</button></td>
+    </tr>`;
+  }).join('') + `<tr><td><b>Tổng</b></td><td class="hide-m"></td><td class="num"><b class="pos">${fmt(total)}</b></td><td class="hide-m"></td><td></td></tr>`
+    : '<tr><td colspan="5" class="empty">Chưa có ai nợ bạn</td></tr>';
+}
 
 // ---------- Nợ ----------
 $('debtForm').onsubmit = e => {
@@ -724,7 +851,7 @@ function cancelPayEdit() {
 $('pCancel').onclick = cancelPayEdit;
 
 function renderDebts() {
-  const debt = totalDebt(), bal = totalBalance(), net = bal - debt;
+  const debt = totalDebt(), bal = totalBalance(), net = netWorth();
   $('dTotal').textContent = fmt(debt);
   $('dAssets').textContent = fmt(bal); $('dAssets').className = 'value ' + (bal >= 0 ? 'pos' : 'neg');
   $('dNet').textContent = fmt(net); $('dNet').className = 'value ' + (net >= 0 ? 'pos' : 'neg');
@@ -762,8 +889,9 @@ function renderDashboard() {
   $('sExpense').textContent = fmt(exp);
   $('sNet').textContent = fmt(inc - exp); $('sNet').className = 'value ' + (inc - exp >= 0 ? 'pos' : 'neg');
   $('sBalance').textContent = fmt(bal); $('sBalance').className = 'value ' + (bal >= 0 ? 'pos' : 'neg');
-  const debt = totalDebt(), nw = bal - debt;
+  const debt = totalDebt(), nw = netWorth();
   $('sDebt').textContent = fmt(debt);
+  $('sRec').textContent = fmt(totalRec());
   $('sNetWorth').textContent = fmt(nw); $('sNetWorth').className = 'value ' + (nw >= 0 ? 'pos' : 'neg');
 
   // Biểu đồ tròn
@@ -897,7 +1025,7 @@ $('resetAll').onclick = async () => {
   data = structuredClone(DEFAULT); save(); toast('Đã xóa toàn bộ dữ liệu');
 };
 
-function render() { fillSelects(); renderDashboard(); renderWallets(); renderDebts(); renderTxList(); renderBudgets(); renderCats(); }
+function render() { fillSelects(); renderDashboard(); renderWallets(); renderDebts(); renderRecs(); renderTxList(); renderBudgets(); renderCats(); }
 $('cloudBadge').onclick = () => { showTab('settings'); window.scrollTo(0, 0); };
 $('cloudLogin').onclick = () => window.cloudLogin?.();
 $('cloudLogout').onclick = () => window.cloudLogout?.();
@@ -907,13 +1035,13 @@ setCloudStatus(...lastCloud);
 
 <!-- ===== ĐỒNG BỘ ĐÁM MÂY (Firebase Auth + Firestore) ===== -->
 <script type="module">
-const COLS = [['transactions', 'tx'], ['wallets', 'wallets'], ['categories', 'categories'], ['debts', 'debts']];
+const COLS = [['transactions', 'tx'], ['wallets', 'wallets'], ['categories', 'categories'], ['debts', 'debts'], ['receivables', 'receivables']];
 // So sánh object không phụ thuộc thứ tự key (Firestore có thể trả về key theo thứ tự khác)
 const stable = v => v && typeof v === 'object' && !Array.isArray(v)
   ? '{' + Object.keys(v).sort().filter(k => v[k] !== undefined).map(k => JSON.stringify(k) + ':' + stable(v[k])).join(',') + '}'
   : Array.isArray(v) ? '[' + v.map(stable).join(',') + ']' : JSON.stringify(v ?? null);
 const clean = o => JSON.parse(JSON.stringify(o)); // bỏ các trường undefined
-const pick = d => ({ transactions: d.transactions, wallets: d.wallets, categories: d.categories, debts: d.debts || [], budgets: d.budgets || {} });
+const pick = d => ({ transactions: d.transactions, wallets: d.wallets, categories: d.categories, debts: d.debts || [], receivables: d.receivables || [], budgets: d.budgets || {} });
 
 if (!FIREBASE_CONFIG) {
   setCloudStatus('none', 'Chưa cấu hình đồng bộ — dữ liệu chỉ lưu trên thiết bị này. Xem file HUONG-DAN-DONG-BO.md để bật.', null);
@@ -964,9 +1092,9 @@ async function initCloud() {
   // Lần đầu đăng nhập trên thiết bị: đám mây trống -> tải dữ liệu máy này lên; có dữ liệu -> hỏi gộp
   async function firstSync(cloud) {
     const local = structuredClone(data);
-    const cloudEmpty = !cloud.transactions.length && !cloud.wallets.length && !cloud.categories.length && !cloud.debts.length;
+    const cloudEmpty = !cloud.transactions.length && !cloud.wallets.length && !cloud.categories.length && !cloud.debts.length && !cloud.receivables.length;
     if (cloudEmpty) {
-      synced = { transactions: [], wallets: [], categories: [], debts: [], budgets: {} };
+      synced = { transactions: [], wallets: [], categories: [], debts: [], receivables: [], budgets: {} };
       ready = true;
       await push();
       toast('Đã tải dữ liệu của máy này lên đám mây');
@@ -979,11 +1107,15 @@ async function initCloud() {
     const extra = local.transactions.filter(t => !ids.has(t.id));
     const debtIds = new Set(cloud.debts.map(d => d.id));
     const extraDebts = (local.debts || []).filter(d => !debtIds.has(d.id));
-    const what = [extra.length ? `${extra.length} giao dịch` : '', extraDebts.length ? `${extraDebts.length} khoản nợ` : ''].filter(Boolean).join(' và ');
+    const recIds = new Set(cloud.receivables.map(r => r.id));
+    const extraRecs = (local.receivables || []).filter(r => !recIds.has(r.id));
+    const what = [extra.length ? `${extra.length} giao dịch` : '', extraDebts.length ? `${extraDebts.length} khoản nợ` : '',
+      extraRecs.length ? `${extraRecs.length} khoản cho vay` : ''].filter(Boolean).join(', ');
     if (what && await ask(`Thiết bị này có ${what} chưa có trên đám mây. Gộp lên đám mây?`, 'Gộp')) {
       const merged = structuredClone(pick(data));
       merged.transactions.push(...extra);
       merged.debts.push(...extraDebts);
+      merged.receivables.push(...extraRecs);
       for (const d of extraDebts) if (d.walletId && !merged.wallets.some(w => w.id === d.walletId)) {
         const w = local.wallets.find(w => w.id === d.walletId); if (w) merged.wallets.push(w);
       }
@@ -1009,8 +1141,8 @@ async function initCloud() {
     const parts = {};
     let first = true;
     const assemble = () => {
-      if (!['tx', 'wallets', 'categories', 'debts', 'meta'].every(k => k in parts)) return;
-      const cloud = { transactions: parts.tx, wallets: parts.wallets, categories: parts.categories, debts: parts.debts, budgets: parts.meta?.budgets || {} };
+      if (!['tx', 'wallets', 'categories', 'debts', 'receivables', 'meta'].every(k => k in parts)) return;
+      const cloud = { transactions: parts.tx, wallets: parts.wallets, categories: parts.categories, debts: parts.debts, receivables: parts.receivables, budgets: parts.meta?.budgets || {} };
       if (first) { first = false; firstSync(cloud).then(() => setCloudStatus('ok', 'Đã đồng bộ. Dữ liệu tự cập nhật trên mọi thiết bị đăng nhập cùng tài khoản.', email)).catch(onErr); return; }
       if (!ready) return;
       synced = structuredClone(cloud);

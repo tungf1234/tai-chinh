@@ -1,0 +1,833 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#2563eb">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Tài chính">
+<title>Quản lý tài chính cá nhân</title>
+<style>
+  :root {
+    --bg: #f5f6f8; --card: #fff; --text: #1f2937; --muted: #6b7280; --border: #e5e7eb;
+    --green: #16a34a; --red: #dc2626; --blue: #2563eb; --amber: #d97706;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: "Segoe UI", system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); }
+  header { background: var(--blue); color: #fff; padding: 14px 24px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  header h1 { font-size: 20px; margin: 0; flex: 1; white-space: nowrap; }
+  header input[type=month] { padding: 6px 8px; border-radius: 6px; border: none; font-size: 14px; }
+  nav { display: flex; gap: 4px; background: #fff; border-bottom: 1px solid var(--border); padding: 0 24px; overflow-x: auto; position: sticky; top: 0; z-index: 10; }
+  nav button { background: none; border: none; padding: 12px 16px; cursor: pointer; font-size: 14px; color: var(--muted); border-bottom: 2px solid transparent; white-space: nowrap; }
+  nav button.active { color: var(--blue); border-bottom-color: var(--blue); font-weight: 600; }
+  main { max-width: 1100px; margin: 0 auto; padding: 20px; }
+  .tab { display: none; } .tab.active { display: block; }
+  .grid { display: grid; gap: 16px; }
+  .g3 { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+  .g2 { grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); }
+  .gw { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
+  .card h3 { margin: 0 0 12px; font-size: 15px; }
+  .stat .label { color: var(--muted); font-size: 13px; }
+  .stat .value { font-size: 24px; font-weight: 700; margin-top: 4px; }
+  .wallet { border-left: 4px solid; padding: 12px 14px; }
+  .wallet .name { font-size: 13px; color: var(--muted); }
+  .wallet .bal { font-size: 19px; font-weight: 700; margin-top: 2px; }
+  .pos { color: var(--green); } .neg { color: var(--red); }
+  form.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: end; }
+  form.row label { display: flex; flex-direction: column; font-size: 12px; color: var(--muted); gap: 4px; }
+  input, select { padding: 7px 9px; border: 1px solid var(--border); border-radius: 6px; font-size: 14px; font-family: inherit; background: #fff; }
+  button.btn { padding: 8px 14px; border: none; border-radius: 6px; background: var(--blue); color: #fff; cursor: pointer; font-size: 14px; }
+  button.btn.sec { background: #e5e7eb; color: var(--text); }
+  button.btn.danger { background: var(--red); }
+  button.link { background: none; border: none; color: var(--red); cursor: pointer; font-size: 13px; padding: 4px 6px; }
+  button.link.edit { color: var(--blue); }
+  .tbl { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th, td { padding: 8px 6px; border-bottom: 1px solid var(--border); text-align: left; }
+  th { color: var(--muted); font-weight: 600; font-size: 12px; text-transform: uppercase; }
+  td.num, th.num { text-align: right; white-space: nowrap; }
+  .pill { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; background: #eef2ff; color: #3730a3; white-space: nowrap; }
+  .bar { height: 8px; background: #eef0f3; border-radius: 4px; overflow: hidden; margin-top: 4px; }
+  .bar > div { height: 100%; border-radius: 4px; }
+  .muted { color: var(--muted); font-size: 13px; }
+  .filters { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+  .legend { display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
+  .legend span.dot { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; }
+  .flex { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+  .empty { text-align: center; color: var(--muted); padding: 24px; }
+  #modal { position: fixed; inset: 0; background: rgba(0,0,0,.4); display: none; align-items: center; justify-content: center; z-index: 50; }
+  #modal.show { display: flex; }
+  #modal .box { background: #fff; border-radius: 10px; padding: 20px; max-width: 380px; width: 90%; box-shadow: 0 10px 30px rgba(0,0,0,.2); }
+  #modal .actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+  #toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #111827; color: #fff; padding: 10px 16px; border-radius: 8px; font-size: 14px; opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 60; max-width: 90vw; text-align: center; }
+  #toast.show { opacity: 1; }
+
+  /* Điện thoại */
+  @media (max-width: 640px) {
+    header { padding: 10px 12px; }
+    header h1 { font-size: 17px; width: 100%; flex: none; }
+    nav { padding: 0 4px; }
+    nav button { padding: 11px 10px; font-size: 13px; }
+    main { padding: 10px; }
+    .grid { gap: 10px; }
+    .g3 { grid-template-columns: 1fr 1fr; }
+    .g2 { grid-template-columns: 1fr; }
+    .gw { grid-template-columns: 1fr 1fr; gap: 8px; }
+    .card { padding: 12px; }
+    .stat .value { font-size: 17px; }
+    .wallet .bal { font-size: 16px; }
+    form.row label { flex: 1 1 calc(50% - 8px); }
+    form.row label.wide { flex-basis: 100%; }
+    form.row input, form.row select { width: 100% !important; font-size: 16px; }
+    form.row .btn { flex: 1; padding: 11px; }
+    table { font-size: 13px; }
+    th, td { padding: 7px 4px; }
+    .hide-m { display: none; }
+    #pie { width: 160px; height: 160px; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>💰 Quản lý tài chính</h1>
+  <label style="font-size:13px">Tháng: <input type="month" id="month"></label>
+  <button class="btn sec" id="thisMonth" style="padding:6px 10px">Tháng này</button>
+  <button class="btn sec" id="cloudBadge" style="padding:6px 10px" title="Trạng thái đồng bộ">💾 Chỉ trên máy</button>
+</header>
+<div id="modal"><div class="box"><div id="modalMsg"></div><div class="actions"><button class="btn sec" id="modalNo">Hủy</button><button class="btn danger" id="modalYes">Đồng ý</button></div></div></div>
+<div id="toast"></div>
+<nav>
+  <button data-tab="dashboard" class="active">Tổng quan</button>
+  <button data-tab="transactions">Giao dịch</button>
+  <button data-tab="wallets">Ví</button>
+  <button data-tab="budgets">Ngân sách</button>
+  <button data-tab="settings">Danh mục & Dữ liệu</button>
+</nav>
+
+<main>
+  <!-- TỔNG QUAN -->
+  <section id="dashboard" class="tab active">
+    <div class="grid g3">
+      <div class="card stat"><div class="label">Thu nhập <span class="mLabel"></span></div><div class="value pos" id="sIncome">0</div></div>
+      <div class="card stat"><div class="label">Chi tiêu <span class="mLabel"></span></div><div class="value neg" id="sExpense">0</div></div>
+      <div class="card stat"><div class="label">Còn lại <span class="mLabel"></span></div><div class="value" id="sNet">0</div></div>
+      <div class="card stat"><div class="label">Tổng số dư hiện tại (mọi ví)</div><div class="value" id="sBalance">0</div></div>
+    </div>
+    <div class="card" style="margin-top:16px">
+      <h3>Số dư từng ví</h3>
+      <div class="grid gw" id="walletCards"></div>
+    </div>
+    <div class="grid g2" style="margin-top:16px">
+      <div class="card">
+        <h3>Chi tiêu theo danh mục</h3>
+        <div class="flex"><svg id="pie" width="200" height="200" viewBox="0 0 200 200"></svg><div class="legend" id="pieLegend"></div></div>
+      </div>
+      <div class="card">
+        <h3>Thu / Chi 6 tháng gần nhất</h3>
+        <svg id="barChart" width="100%" height="220" viewBox="0 0 460 220" preserveAspectRatio="xMidYMid meet"></svg>
+      </div>
+    </div>
+    <div class="card" style="margin-top:16px">
+      <h3>Giao dịch gần đây</h3>
+      <div class="tbl"><table><tbody id="recent"></tbody></table></div>
+    </div>
+  </section>
+
+  <!-- GIAO DỊCH -->
+  <section id="transactions" class="tab">
+    <div class="card">
+      <h3 id="formTitle">Thêm giao dịch</h3>
+      <form class="row" id="txForm">
+        <label>Loại
+          <select id="txType"><option value="expense">Chi</option><option value="income">Thu</option><option value="transfer">Chuyển giữa các ví</option></select>
+        </label>
+        <label>Số tiền (đ)<input id="txAmount" type="text" inputmode="numeric" required placeholder="50.000" style="width:130px"></label>
+        <label id="lblCat">Danh mục<select id="txCat"></select></label>
+        <label><span id="lblWalletText">Ví</span><select id="txWallet"></select></label>
+        <label id="lblTo" style="display:none">Đến ví<select id="txTo"></select></label>
+        <label>Ngày<input id="txDate" type="date" required></label>
+        <label class="wide" style="flex:1;min-width:160px">Ghi chú<input id="txNote" type="text" placeholder="VD: ăn trưa"></label>
+        <button class="btn" type="submit" id="txSubmit">Thêm</button>
+        <button class="btn sec" type="button" id="txCancel" style="display:none">Hủy</button>
+      </form>
+    </div>
+    <div class="card" style="margin-top:16px">
+      <div class="filters">
+        <select id="fType"><option value="">Tất cả loại</option><option value="income">Thu</option><option value="expense">Chi</option><option value="transfer">Chuyển ví</option></select>
+        <select id="fCat"><option value="">Tất cả danh mục</option></select>
+        <select id="fWallet"><option value="">Tất cả ví</option></select>
+        <input id="fSearch" placeholder="Tìm ghi chú...">
+        <label class="muted" style="display:flex;align-items:center;gap:4px"><input type="checkbox" id="fAll"> Hiện mọi tháng</label>
+      </div>
+      <div class="tbl"><table>
+        <thead><tr><th>Ngày</th><th>Danh mục</th><th class="hide-m">Ví</th><th class="hide-m">Ghi chú</th><th class="num">Số tiền</th><th></th></tr></thead>
+        <tbody id="txList"></tbody>
+      </table></div>
+    </div>
+  </section>
+
+  <!-- VÍ -->
+  <section id="wallets" class="tab">
+    <div class="card">
+      <h3 id="wFormTitle">Thêm ví</h3>
+      <form class="row" id="walletForm">
+        <label>Tên ví<input id="wName" required placeholder="VD: Vietcombank, MoMo"></label>
+        <label>Số dư hiện tại (đ)<input id="wBalance" type="text" inputmode="numeric" placeholder="0" style="width:140px"></label>
+        <label>Màu<input id="wColor" type="color" value="#2563eb" style="padding:2px;width:48px;height:34px"></label>
+        <button class="btn" type="submit" id="wSubmit">Thêm</button>
+        <button class="btn sec" type="button" id="wCancel" style="display:none">Hủy</button>
+      </form>
+      <p class="muted" style="margin-bottom:0">Nhập <b>số dư thực tế</b> đang có trong ví/tài khoản. Khi số dư trong app lệch với thực tế, bấm <b>Sửa</b> ví và nhập lại số dư đúng — app sẽ tự điều chỉnh.</p>
+    </div>
+    <div class="card" style="margin-top:16px">
+      <div class="tbl"><table>
+        <thead><tr><th>Ví</th><th class="num">Thu <span class="mLabel"></span></th><th class="num">Chi <span class="mLabel"></span></th><th class="num">Số dư hiện tại</th><th></th></tr></thead>
+        <tbody id="walletList"></tbody>
+      </table></div>
+    </div>
+  </section>
+
+  <!-- NGÂN SÁCH -->
+  <section id="budgets" class="tab">
+    <div class="card">
+      <h3>Ngân sách chi tiêu hàng tháng theo danh mục</h3>
+      <p class="muted">Đặt hạn mức cho từng danh mục chi. Để trống hoặc 0 = không giới hạn.</p>
+      <div class="tbl"><table>
+        <thead><tr><th>Danh mục</th><th class="num">Hạn mức</th><th class="num">Đã chi</th><th style="width:35%">Tiến độ</th></tr></thead>
+        <tbody id="budgetList"></tbody>
+      </table></div>
+    </div>
+  </section>
+
+  <!-- CÀI ĐẶT -->
+  <section id="settings" class="tab">
+    <div class="card" style="margin-bottom:16px">
+      <h3>☁️ Đồng bộ đám mây</h3>
+      <p id="cloudStatus" class="muted" style="margin-top:0"></p>
+      <div class="flex" style="gap:8px">
+        <button class="btn" id="cloudLogin" style="display:none">Đăng nhập bằng Google</button>
+        <button class="btn sec" id="cloudLogout" style="display:none">Đăng xuất</button>
+      </div>
+    </div>
+    <div class="grid g2">
+      <div class="card">
+        <h3>Danh mục</h3>
+        <form class="row" id="catForm">
+          <label>Tên<input id="catName" required></label>
+          <label>Loại<select id="catType"><option value="expense">Chi</option><option value="income">Thu</option></select></label>
+          <label>Màu<input id="catColor" type="color" value="#2563eb" style="padding:2px;width:48px;height:34px"></label>
+          <button class="btn" type="submit">Thêm</button>
+        </form>
+        <table style="margin-top:12px"><tbody id="catList"></tbody></table>
+      </div>
+      <div class="card">
+        <h3>Sao lưu & khôi phục</h3>
+        <p class="muted">Dữ liệu được lưu trong trình duyệt trên thiết bị này. Hãy xuất file sao lưu định kỳ để tránh mất dữ liệu, và dùng nó để chuyển dữ liệu sang máy khác / điện thoại.</p>
+        <div class="flex" style="gap:8px">
+          <button class="btn" id="exportJson">Xuất JSON (sao lưu)</button>
+          <button class="btn sec" id="exportCsv">Xuất CSV (Excel)</button>
+          <button class="btn sec" id="importBtn">Nhập JSON</button>
+          <input type="file" id="importFile" accept=".json,application/json" style="display:none">
+        </div>
+        <hr style="border:none;border-top:1px solid var(--border);margin:16px 0">
+        <button class="btn danger" id="resetAll">Xóa toàn bộ dữ liệu</button>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+// ===== CẤU HÌNH ĐỒNG BỘ ĐÁM MÂY (Firebase) =====
+// Dán cấu hình Firebase của bạn vào đây (xem HUONG-DAN-DONG-BO.md). Để null = chỉ lưu trên thiết bị.
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyCPjaaiT7cZnvfsdW-lHXQtZbvmKakMhNI",
+  authDomain: "m-m-m-47354.firebaseapp.com",
+  projectId: "m-m-m-47354",
+  storageBucket: "m-m-m-47354.firebasestorage.app",
+  messagingSenderId: "1007822894922",
+  appId: "1:1007822894922:web:515b61d7ff49e6cf0ab3b3"
+};
+/* Ví dụ:
+const FIREBASE_CONFIG = {
+  apiKey: "AIza...", authDomain: "ten-du-an.firebaseapp.com", projectId: "ten-du-an",
+  storageBucket: "ten-du-an.appspot.com", messagingSenderId: "123", appId: "1:123:web:abc"
+};
+*/
+
+const KEY = 'pfm-data-v1';
+const DEFAULT_WALLETS = [
+  { id: 'w1', name: 'Tiền mặt', color: '#16a34a', initial: 0 },
+  { id: 'w2', name: 'Tài khoản ngân hàng', color: '#2563eb', initial: 0 },
+  { id: 'w3', name: 'Ví điện tử', color: '#db2777', initial: 0 },
+];
+const DEFAULT = {
+  categories: [
+    { id: 'c1', name: 'Ăn uống', type: 'expense', color: '#ef4444' },
+    { id: 'c2', name: 'Đi lại', type: 'expense', color: '#f59e0b' },
+    { id: 'c3', name: 'Nhà ở', type: 'expense', color: '#8b5cf6' },
+    { id: 'c4', name: 'Mua sắm', type: 'expense', color: '#ec4899' },
+    { id: 'c5', name: 'Hóa đơn', type: 'expense', color: '#0ea5e9' },
+    { id: 'c6', name: 'Giải trí', type: 'expense', color: '#14b8a6' },
+    { id: 'c7', name: 'Sức khỏe', type: 'expense', color: '#84cc16' },
+    { id: 'c8', name: 'Khác', type: 'expense', color: '#6b7280' },
+    { id: 'c9', name: 'Lương', type: 'income', color: '#16a34a' },
+    { id: 'c10', name: 'Thưởng', type: 'income', color: '#22c55e' },
+    { id: 'c11', name: 'Thu nhập khác', type: 'income', color: '#65a30d' },
+  ],
+  wallets: DEFAULT_WALLETS,
+  transactions: [],
+  budgets: {}
+};
+
+// Nâng cấp dữ liệu cũ (chưa có ví) -> gán giao dịch cũ vào ví đầu tiên
+function migrate(d) {
+  d.budgets = d.budgets || {};
+  if (!Array.isArray(d.wallets) || !d.wallets.length) d.wallets = structuredClone(DEFAULT_WALLETS);
+  const first = d.wallets[0].id;
+  d.transactions.forEach(t => { if (!t.walletId) t.walletId = first; });
+  return d;
+}
+
+let data = load();
+let editingId = null, editingWallet = null;
+
+function load() {
+  try { const d = JSON.parse(localStorage.getItem(KEY)); if (d && d.categories) return migrate(d); } catch {}
+  return structuredClone(DEFAULT);
+}
+function persistLocal() {
+  try { localStorage.setItem(KEY, JSON.stringify(data)); } catch { toast('⚠️ Không lưu được vào trình duyệt — hãy Xuất JSON để sao lưu'); }
+}
+function save() { persistLocal(); render(); if (window.cloudPush) window.cloudPush(); }
+// Thay toàn bộ dữ liệu (dùng khi nhận dữ liệu từ đám mây) — không đẩy ngược lên
+function replaceData(d) { data = migrate(d); persistLocal(); render(); }
+const $ = id => document.getElementById(id);
+
+// Trạng thái đồng bộ: none | off | busy | ok | err
+let lastCloud = ['none', 'Chưa cấu hình đồng bộ — dữ liệu chỉ lưu trên thiết bị này.', null];
+function setCloudStatus(state, text, email) {
+  lastCloud = [state, text, email];
+  $('cloudStatus').innerHTML = esc(text) + (email ? `<br>Tài khoản: <b>${esc(email)}</b>` : '');
+  $('cloudLogin').style.display = state === 'off' ? '' : 'none';
+  $('cloudLogout').style.display = email ? '' : 'none';
+  let badge = { none: '💾 Chỉ trên máy', off: '☁️ Chưa đăng nhập', busy: '⏳ Đang đồng bộ', ok: '☁️ Đã đồng bộ', err: '⚠️ Lỗi đồng bộ' }[state];
+  if (state === 'ok' && !navigator.onLine) badge = '📴 Offline — sẽ đồng bộ khi có mạng';
+  $('cloudBadge').textContent = badge;
+}
+window.addEventListener('online', () => setCloudStatus(...lastCloud));
+window.addEventListener('offline', () => setCloudStatus(...lastCloud));
+
+// Hộp thoại xác nhận & thông báo trong trang
+function ask(msg, yesText = 'Xóa') {
+  return new Promise(res => {
+    $('modalMsg').textContent = msg; $('modalYes').textContent = yesText;
+    $('modal').classList.add('show');
+    const done = v => { $('modal').classList.remove('show'); $('modalYes').onclick = $('modalNo').onclick = null; res(v); };
+    $('modalYes').onclick = () => done(true);
+    $('modalNo').onclick = () => done(false);
+  });
+}
+let toastTimer;
+function toast(msg) {
+  $('toast').textContent = msg; $('toast').classList.add('show');
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => $('toast').classList.remove('show'), 3000);
+}
+
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+const fmt = n => Math.round(n).toLocaleString('vi-VN') + ' đ';
+const parseAmt = s => { const neg = String(s).trim().startsWith('-'); const n = Number(String(s).replace(/[^\d]/g, '')) || 0; return neg ? -n : n; };
+const fmtInput = n => n ? n.toLocaleString('vi-VN') : '';
+const cat = id => data.categories.find(c => c.id === id) || { name: '(đã xóa)', color: '#999', type: 'expense' };
+const wal = id => data.wallets.find(w => w.id === id) || { name: '(ví đã xóa)', color: '#999', initial: 0 };
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const today = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+const dmy = d => d.split('-').reverse().join('/');
+const inMonth = (t, m) => t.date.slice(0, 7) === m;
+const sorted = arr => [...arr].sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id));
+
+// Biến động của ví (thu - chi ± chuyển), không gồm số dư ban đầu
+function walletFlow(id, list = data.transactions) {
+  let s = 0;
+  for (const t of list) {
+    if (t.type === 'income' && t.walletId === id) s += t.amount;
+    else if (t.type === 'expense' && t.walletId === id) s -= t.amount;
+    else if (t.type === 'transfer') { if (t.walletId === id) s -= t.amount; if (t.toWalletId === id) s += t.amount; }
+  }
+  return s;
+}
+const walletBalance = id => (wal(id).initial || 0) + walletFlow(id);
+const totalBalance = () => data.wallets.reduce((s, w) => s + walletBalance(w.id), 0);
+
+const monthInput = $('month');
+monthInput.value = today().slice(0, 7);
+$('txDate').value = today();
+$('thisMonth').onclick = () => { monthInput.value = today().slice(0, 7); render(); };
+
+// Tabs
+document.querySelectorAll('nav button').forEach(b => b.onclick = () => showTab(b.dataset.tab));
+function showTab(name) {
+  document.querySelectorAll('nav button').forEach(x => x.classList.toggle('active', x.dataset.tab === name));
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.id === name));
+}
+
+// Định dạng số tiền khi gõ
+['txAmount', 'wBalance'].forEach(id => $(id).addEventListener('input', e => {
+  const n = parseAmt(e.target.value);
+  e.target.value = n < 0 ? '-' + fmtInput(-n) : (e.target.value.trim() === '-' ? '-' : fmtInput(n));
+}));
+
+function fillSelects() {
+  const type = $('txType').value, isTransfer = type === 'transfer';
+  $('lblCat').style.display = isTransfer ? 'none' : '';
+  $('lblTo').style.display = isTransfer ? '' : 'none';
+  $('lblWalletText').textContent = isTransfer ? 'Từ ví' : 'Ví';
+
+  const keep = (sel, html) => { const cur = sel.value; sel.innerHTML = html; if ([...sel.options].some(o => o.value === cur)) sel.value = cur; };
+  keep($('txCat'), data.categories.filter(c => c.type === type).map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join(''));
+  const wOpts = data.wallets.map(w => `<option value="${w.id}">${esc(w.name)}</option>`).join('');
+  keep($('txWallet'), wOpts);
+  keep($('txTo'), wOpts);
+  if (isTransfer && $('txTo').value === $('txWallet').value && data.wallets.length > 1)
+    $('txTo').value = data.wallets.find(w => w.id !== $('txWallet').value).id;
+  keep($('fCat'), '<option value="">Tất cả danh mục</option>' + data.categories.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join(''));
+  keep($('fWallet'), '<option value="">Tất cả ví</option>' + wOpts);
+}
+$('txType').onchange = fillSelects;
+$('txWallet').onchange = fillSelects;
+
+// ---------- Giao dịch ----------
+$('txForm').onsubmit = e => {
+  e.preventDefault();
+  const amount = Math.abs(parseAmt($('txAmount').value));
+  const type = $('txType').value;
+  if (!amount) return toast('Vui lòng nhập số tiền');
+  if (!$('txWallet').value) return toast('Hãy tạo ví trước (tab Ví)');
+  const tx = { type, amount, walletId: $('txWallet').value, date: $('txDate').value || today(), note: $('txNote').value.trim() };
+  if (type === 'transfer') {
+    tx.toWalletId = $('txTo').value;
+    if (!tx.toWalletId || tx.toWalletId === tx.walletId) return toast('Chọn hai ví khác nhau để chuyển tiền');
+    tx.categoryId = null;
+  } else {
+    if (!$('txCat').value) return toast('Hãy tạo danh mục trước');
+    tx.categoryId = $('txCat').value;
+    tx.toWalletId = null;
+  }
+  const wasEdit = !!editingId;
+  if (editingId) { Object.assign(data.transactions.find(t => t.id === editingId), tx); cancelEdit(); }
+  else data.transactions.push({ id: uid(), ...tx });
+  $('txAmount').value = ''; $('txNote').value = '';
+  const txMonth = tx.date.slice(0, 7);
+  let msg = wasEdit ? 'Đã lưu giao dịch' : 'Đã thêm giao dịch';
+  if (txMonth !== monthInput.value) { monthInput.value = txMonth; msg += ` — chuyển sang xem tháng ${txMonth.slice(5)}/${txMonth.slice(0, 4)}`; }
+  save();
+  toast(msg);
+};
+
+function startEdit(id) {
+  const t = data.transactions.find(t => t.id === id);
+  editingId = id;
+  $('txType').value = t.type; fillSelects();
+  if (t.categoryId) $('txCat').value = t.categoryId;
+  $('txWallet').value = t.walletId; fillSelects();
+  if (t.toWalletId) $('txTo').value = t.toWalletId;
+  $('txAmount').value = fmtInput(t.amount);
+  $('txDate').value = t.date; $('txNote').value = t.note || '';
+  $('formTitle').textContent = 'Sửa giao dịch'; $('txSubmit').textContent = 'Lưu';
+  $('txCancel').style.display = '';
+  showTab('transactions');
+  window.scrollTo(0, 0);
+}
+function cancelEdit() {
+  editingId = null;
+  $('formTitle').textContent = 'Thêm giao dịch'; $('txSubmit').textContent = 'Thêm';
+  $('txCancel').style.display = 'none';
+  $('txAmount').value = ''; $('txNote').value = '';
+}
+$('txCancel').onclick = cancelEdit;
+
+async function delTx(id) {
+  const t = data.transactions.find(t => t.id === id);
+  const kind = { income: 'thu', expense: 'chi', transfer: 'chuyển' }[t.type];
+  if (!t || !await ask(`Xóa giao dịch ${kind} ${fmt(t.amount)} ngày ${dmy(t.date)}?`)) return;
+  data.transactions = data.transactions.filter(t => t.id !== id);
+  if (editingId === id) cancelEdit();
+  save();
+  toast('Đã xóa giao dịch');
+}
+
+function txRow(t) {
+  const isT = t.type === 'transfer';
+  const c = isT ? { name: 'Chuyển ví', color: '#6b7280' } : cat(t.categoryId);
+  const w = wal(t.walletId);
+  const walletTxt = isT ? `${esc(w.name)} → ${esc(wal(t.toWalletId).name)}` : esc(w.name);
+  const amt = isT ? `<span class="muted">↔ ${fmt(t.amount)}</span>`
+    : `<span class="${t.type === 'income' ? 'pos' : 'neg'}">${t.type === 'income' ? '+' : '−'}${fmt(t.amount)}</span>`;
+  return `<tr>
+    <td>${dmy(t.date).slice(0, 5)}<span class="hide-m">${dmy(t.date).slice(5)}</span></td>
+    <td><span class="pill" style="background:${c.color}22;color:${c.color}">${esc(c.name)}</span>
+      <div class="muted" style="font-size:11px;margin-top:2px">${walletTxt}${t.note ? ' · ' + esc(t.note) : ''}</div></td>
+    <td class="hide-m">${walletTxt}</td>
+    <td class="hide-m">${esc(t.note || '')}</td>
+    <td class="num">${amt}</td>
+    <td class="num"><button class="link edit" data-act="edit" data-id="${t.id}">Sửa</button><button class="link" data-act="del" data-id="${t.id}">Xóa</button></td>
+  </tr>`;
+}
+
+['fType', 'fCat', 'fWallet', 'fSearch', 'fAll'].forEach(id => $(id).addEventListener('input', renderTxList));
+monthInput.onchange = render;
+
+function renderTxList() {
+  const m = monthInput.value, ft = $('fType').value, fc = $('fCat').value, fw = $('fWallet').value, q = $('fSearch').value.toLowerCase();
+  const list = sorted(data.transactions).filter(t =>
+    ($('fAll').checked || inMonth(t, m)) && (!ft || t.type === ft) && (!fc || t.categoryId === fc) &&
+    (!fw || t.walletId === fw || t.toWalletId === fw) && (!q || (t.note || '').toLowerCase().includes(q)));
+  let inc = 0, exp = 0;
+  list.forEach(t => { if (t.type === 'income') inc += t.amount; else if (t.type === 'expense') exp += t.amount; });
+  $('txList').innerHTML = list.length
+    ? list.map(txRow).join('') +
+      `<tr><td colspan="2"><b>Tổng (${list.length})</b></td><td class="hide-m"></td><td class="hide-m"></td><td class="num"><span class="pos">+${fmt(inc)}</span><br><span class="neg">−${fmt(exp)}</span></td><td></td></tr>`
+    : '<tr><td colspan="6" class="empty">Chưa có giao dịch nào</td></tr>';
+}
+
+// ---------- Ví ----------
+$('walletForm').onsubmit = e => {
+  e.preventDefault();
+  const name = $('wName').value.trim(), target = parseAmt($('wBalance').value), color = $('wColor').value;
+  if (!name) return;
+  if (editingWallet) {
+    const w = data.wallets.find(w => w.id === editingWallet);
+    w.name = name; w.color = color;
+    w.initial = target - walletFlow(w.id); // điều chỉnh để số dư hiện tại = số nhập vào
+    toast('Đã cập nhật ví');
+    cancelWalletEdit();
+  } else {
+    data.wallets.push({ id: uid(), name, color, initial: target });
+    toast('Đã thêm ví');
+  }
+  $('wName').value = ''; $('wBalance').value = '';
+  save();
+};
+function startWalletEdit(id) {
+  const w = data.wallets.find(w => w.id === id);
+  editingWallet = id;
+  $('wName').value = w.name; $('wColor').value = w.color;
+  const b = walletBalance(id); $('wBalance').value = b < 0 ? '-' + fmtInput(-b) : fmtInput(b);
+  $('wFormTitle').textContent = 'Sửa ví'; $('wSubmit').textContent = 'Lưu'; $('wCancel').style.display = '';
+  showTab('wallets'); window.scrollTo(0, 0);
+}
+function cancelWalletEdit() {
+  editingWallet = null;
+  $('wFormTitle').textContent = 'Thêm ví'; $('wSubmit').textContent = 'Thêm'; $('wCancel').style.display = 'none';
+  $('wName').value = ''; $('wBalance').value = '';
+}
+$('wCancel').onclick = cancelWalletEdit;
+async function delWallet(id) {
+  const n = data.transactions.filter(t => t.walletId === id || t.toWalletId === id).length;
+  if (n) return toast(`Ví đang có ${n} giao dịch — hãy xóa/chuyển các giao dịch đó trước`);
+  if (data.wallets.length <= 1) return toast('Cần giữ lại ít nhất 1 ví');
+  if (!await ask(`Xóa ví "${wal(id).name}"?`)) return;
+  data.wallets = data.wallets.filter(w => w.id !== id);
+  if (editingWallet === id) cancelWalletEdit();
+  save();
+}
+
+function renderWallets() {
+  const m = monthInput.value;
+  const mt = data.transactions.filter(t => inMonth(t, m));
+  $('walletCards').innerHTML = data.wallets.map(w => {
+    const b = walletBalance(w.id);
+    return `<div class="card wallet" style="border-left-color:${w.color}"><div class="name">${esc(w.name)}</div><div class="bal ${b < 0 ? 'neg' : ''}">${fmt(b)}</div></div>`;
+  }).join('');
+  $('walletList').innerHTML = data.wallets.map(w => {
+    const inc = mt.filter(t => t.walletId === w.id && t.type === 'income').reduce((s, t) => s + t.amount, 0);
+    const exp = mt.filter(t => t.walletId === w.id && t.type === 'expense').reduce((s, t) => s + t.amount, 0);
+    const b = walletBalance(w.id);
+    return `<tr>
+      <td><span class="pill" style="background:${w.color}22;color:${w.color}">${esc(w.name)}</span></td>
+      <td class="num pos">${fmt(inc)}</td><td class="num neg">${fmt(exp)}</td>
+      <td class="num"><b class="${b < 0 ? 'neg' : ''}">${fmt(b)}</b></td>
+      <td class="num"><button class="link edit" data-act="wedit" data-id="${w.id}">Sửa</button><button class="link" data-act="wdel" data-id="${w.id}">Xóa</button></td>
+    </tr>`;
+  }).join('') + `<tr><td><b>Tổng</b></td><td></td><td></td><td class="num"><b>${fmt(totalBalance())}</b></td><td></td></tr>`;
+}
+
+// ---------- Sự kiện chung cho các nút ----------
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-act]'); if (!b) return;
+  const { act, id } = b.dataset;
+  ({ edit: startEdit, del: delTx, delcat: delCat, wedit: startWalletEdit, wdel: delWallet })[act]?.(id);
+});
+document.addEventListener('change', e => { if (e.target.dataset.budget) setBudget(e.target.dataset.budget, e.target.value); });
+document.addEventListener('input', e => { if (e.target.dataset.budget) e.target.value = fmtInput(Math.abs(parseAmt(e.target.value))); });
+
+// ---------- Tổng quan ----------
+function renderDashboard() {
+  const m = monthInput.value;
+  const mt = data.transactions.filter(t => inMonth(t, m));
+  const inc = mt.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
+  const exp = mt.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
+  const bal = totalBalance();
+  document.querySelectorAll('.mLabel').forEach(el => el.textContent = `T${m.slice(5)}/${m.slice(0, 4)}`);
+  $('sIncome').textContent = fmt(inc);
+  $('sExpense').textContent = fmt(exp);
+  $('sNet').textContent = fmt(inc - exp); $('sNet').className = 'value ' + (inc - exp >= 0 ? 'pos' : 'neg');
+  $('sBalance').textContent = fmt(bal); $('sBalance').className = 'value ' + (bal >= 0 ? 'pos' : 'neg');
+
+  // Biểu đồ tròn
+  const byCat = {};
+  mt.filter(t => t.type === 'expense').forEach(t => byCat[t.categoryId] = (byCat[t.categoryId] || 0) + t.amount);
+  const entries = Object.entries(byCat).sort((a, b) => b[1] - a[1]);
+  const pie = $('pie');
+  if (!entries.length) {
+    pie.innerHTML = '<circle cx="100" cy="100" r="80" fill="#eef0f3"/><text x="100" y="105" text-anchor="middle" font-size="13" fill="#6b7280">Chưa có chi tiêu</text>';
+    $('pieLegend').innerHTML = '';
+  } else {
+    let a0 = -Math.PI / 2, svg = '';
+    entries.forEach(([id, v]) => {
+      const frac = v / exp, a1 = a0 + frac * 2 * Math.PI, c = cat(id).color;
+      if (frac >= 0.9999) svg += `<circle cx="100" cy="100" r="90" fill="${c}"/>`;
+      else {
+        const p = a => `${100 + 90 * Math.cos(a)} ${100 + 90 * Math.sin(a)}`;
+        svg += `<path d="M100 100 L${p(a0)} A90 90 0 ${frac > 0.5 ? 1 : 0} 1 ${p(a1)} Z" fill="${c}" stroke="#fff" stroke-width="1.5"/>`;
+      }
+      a0 = a1;
+    });
+    pie.innerHTML = svg + '<circle cx="100" cy="100" r="48" fill="#fff"/>' +
+      `<text x="100" y="98" text-anchor="middle" font-size="11" fill="#6b7280">Tổng chi</text><text x="100" y="114" text-anchor="middle" font-size="12" font-weight="700">${(exp / 1e6).toLocaleString('vi-VN', { maximumFractionDigits: 2 })} tr</text>`;
+    $('pieLegend').innerHTML = entries.map(([id, v]) =>
+      `<div><span class="dot" style="background:${cat(id).color}"></span>${esc(cat(id).name)}: <b>${fmt(v)}</b> <span class="muted">(${Math.round(v / exp * 100)}%)</span></div>`).join('');
+  }
+
+  // Biểu đồ cột 6 tháng
+  const [y, mo] = m.split('-').map(Number);
+  const months = [];
+  for (let i = 5; i >= 0; i--) { const d = new Date(y, mo - 1 - i, 1); months.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`); }
+  const vals = months.map(k => {
+    const ts = data.transactions.filter(t => inMonth(t, k));
+    return { k, inc: ts.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0), exp: ts.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0) };
+  });
+  const max = Math.max(1, ...vals.flatMap(v => [v.inc, v.exp]));
+  const H = 170, base = 190, colW = 460 / 6;
+  let bars = `<line x1="0" y1="${base}" x2="460" y2="${base}" stroke="#e5e7eb"/>`;
+  vals.forEach((v, i) => {
+    const x = i * colW + colW / 2, hi = v.inc / max * H, he = v.exp / max * H;
+    bars += `<rect x="${x - 22}" y="${base - hi}" width="20" height="${hi}" fill="#16a34a" rx="2"><title>Thu: ${fmt(v.inc)}</title></rect>`;
+    bars += `<rect x="${x + 2}" y="${base - he}" width="20" height="${he}" fill="#dc2626" rx="2"><title>Chi: ${fmt(v.exp)}</title></rect>`;
+    bars += `<text x="${x}" y="${base + 16}" text-anchor="middle" font-size="11" fill="#6b7280">${v.k.slice(5)}/${v.k.slice(2, 4)}</text>`;
+  });
+  bars += `<rect x="330" y="2" width="10" height="10" fill="#16a34a"/><text x="344" y="11" font-size="11">Thu</text><rect x="380" y="2" width="10" height="10" fill="#dc2626"/><text x="394" y="11" font-size="11">Chi</text>`;
+  $('barChart').innerHTML = bars;
+
+  const recent = sorted(data.transactions).slice(0, 8);
+  $('recent').innerHTML = recent.length ? recent.map(txRow).join('') : '<tr><td class="empty">Chưa có giao dịch. Vào tab "Giao dịch" để thêm.</td></tr>';
+}
+
+// ---------- Ngân sách ----------
+function renderBudgets() {
+  const m = monthInput.value;
+  const spent = {};
+  data.transactions.filter(t => t.type === 'expense' && inMonth(t, m)).forEach(t => spent[t.categoryId] = (spent[t.categoryId] || 0) + t.amount);
+  $('budgetList').innerHTML = data.categories.filter(c => c.type === 'expense').map(c => {
+    const b = data.budgets[c.id] || 0, s = spent[c.id] || 0, pct = b ? s / b * 100 : 0;
+    const color = pct >= 100 ? 'var(--red)' : pct >= 80 ? 'var(--amber)' : 'var(--green)';
+    return `<tr>
+      <td><span class="pill" style="background:${c.color}22;color:${c.color}">${esc(c.name)}</span></td>
+      <td class="num"><input style="width:120px;text-align:right" inputmode="numeric" value="${fmtInput(b)}" placeholder="0" data-budget="${c.id}"></td>
+      <td class="num">${fmt(s)}</td>
+      <td>${b ? `<div class="muted">${Math.round(pct)}% ${pct >= 100 ? '— vượt ' + fmt(s - b) : '— còn ' + fmt(b - s)}</div><div class="bar"><div style="width:${Math.min(pct, 100)}%;background:${color}"></div></div>` : '<span class="muted">Không giới hạn</span>'}</td>
+    </tr>`;
+  }).join('');
+}
+function setBudget(id, v) { data.budgets[id] = Math.abs(parseAmt(v)); save(); }
+
+// ---------- Danh mục ----------
+function renderCats() {
+  $('catList').innerHTML = data.categories.map(c => `<tr>
+    <td><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:${c.color}"></span></td>
+    <td>${esc(c.name)}</td><td class="muted">${c.type === 'income' ? 'Thu' : 'Chi'}</td>
+    <td class="num"><button class="link" data-act="delcat" data-id="${c.id}">Xóa</button></td></tr>`).join('');
+}
+$('catForm').onsubmit = e => {
+  e.preventDefault();
+  data.categories.push({ id: uid(), name: $('catName').value.trim(), type: $('catType').value, color: $('catColor').value });
+  $('catName').value = '';
+  save();
+};
+async function delCat(id) {
+  const n = data.transactions.filter(t => t.categoryId === id).length;
+  if (!await ask(n ? `Danh mục này có ${n} giao dịch. Vẫn xóa? (giao dịch sẽ hiển thị "(đã xóa)")` : 'Xóa danh mục này?')) return;
+  data.categories = data.categories.filter(c => c.id !== id);
+  delete data.budgets[id];
+  save();
+}
+
+// ---------- Xuất / nhập ----------
+function download(name, content, type) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([content], { type }));
+  a.download = name; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+$('exportJson').onclick = () => download(`tai-chinh-${today()}.json`, JSON.stringify(data, null, 2), 'application/json');
+$('exportCsv').onclick = () => {
+  const q = s => `"${String(s).replace(/"/g, '""')}"`;
+  const typeName = { income: 'Thu', expense: 'Chi', transfer: 'Chuyển ví' };
+  const rows = [['Ngày', 'Loại', 'Danh mục', 'Ví', 'Đến ví', 'Số tiền', 'Ghi chú'].join(',')].concat(
+    sorted(data.transactions).map(t => [t.date, typeName[t.type], q(t.type === 'transfer' ? '' : cat(t.categoryId).name),
+      q(wal(t.walletId).name), q(t.toWalletId ? wal(t.toWalletId).name : ''), t.amount, q(t.note || '')].join(',')));
+  download(`giao-dich-${today()}.csv`, '﻿' + rows.join('\n'), 'text/csv;charset=utf-8');
+};
+$('importBtn').onclick = () => $('importFile').click();
+$('importFile').onchange = async e => {
+  const f = e.target.files[0]; if (!f) return;
+  e.target.value = '';
+  try {
+    const d = JSON.parse(await f.text());
+    if (!Array.isArray(d.categories) || !Array.isArray(d.transactions)) throw 0;
+    if (!await ask(`Nhập ${d.transactions.length} giao dịch? Dữ liệu hiện tại trên thiết bị này sẽ bị thay thế.`, 'Nhập')) return;
+    data = migrate(d); save(); toast('Đã nhập dữ liệu.');
+  } catch { toast('File không hợp lệ.'); }
+};
+$('resetAll').onclick = async () => {
+  const cloudNote = window.cloudPush ? ' Dữ liệu trên đám mây (và mọi thiết bị đã đăng nhập) cũng bị xóa.' : '';
+  if (!await ask('Xóa TOÀN BỘ dữ liệu? Không thể hoàn tác. Nên xuất sao lưu trước.' + cloudNote, 'Xóa hết')) return;
+  data = structuredClone(DEFAULT); save(); toast('Đã xóa toàn bộ dữ liệu');
+};
+
+function render() { fillSelects(); renderDashboard(); renderWallets(); renderTxList(); renderBudgets(); renderCats(); }
+$('cloudBadge').onclick = () => { showTab('settings'); window.scrollTo(0, 0); };
+$('cloudLogin').onclick = () => window.cloudLogin?.();
+$('cloudLogout').onclick = () => window.cloudLogout?.();
+render();
+setCloudStatus(...lastCloud);
+</script>
+
+<!-- ===== ĐỒNG BỘ ĐÁM MÂY (Firebase Auth + Firestore) ===== -->
+<script type="module">
+const COLS = [['transactions', 'tx'], ['wallets', 'wallets'], ['categories', 'categories']];
+// So sánh object không phụ thuộc thứ tự key (Firestore có thể trả về key theo thứ tự khác)
+const stable = v => v && typeof v === 'object' && !Array.isArray(v)
+  ? '{' + Object.keys(v).sort().filter(k => v[k] !== undefined).map(k => JSON.stringify(k) + ':' + stable(v[k])).join(',') + '}'
+  : Array.isArray(v) ? '[' + v.map(stable).join(',') + ']' : JSON.stringify(v ?? null);
+const clean = o => JSON.parse(JSON.stringify(o)); // bỏ các trường undefined
+const pick = d => ({ transactions: d.transactions, wallets: d.wallets, categories: d.categories, budgets: d.budgets || {} });
+
+if (!FIREBASE_CONFIG) {
+  setCloudStatus('none', 'Chưa cấu hình đồng bộ — dữ liệu chỉ lưu trên thiết bị này. Xem file HUONG-DAN-DONG-BO.md để bật.', null);
+} else if (location.protocol === 'file:') {
+  setCloudStatus('none', 'Đồng bộ chỉ hoạt động khi mở trang qua địa chỉ web (VD: GitHub Pages), không hoạt động khi mở file trực tiếp. Hiện dữ liệu chỉ lưu trên máy này.', null);
+} else {
+  initCloud().catch(e => { console.error(e); setCloudStatus('err', 'Không kết nối được đám mây: ' + (e.code || e.message), null); });
+}
+
+async function initCloud() {
+  setCloudStatus('busy', 'Đang kết nối...', null);
+  const base = 'https://www.gstatic.com/firebasejs/10.12.2/';
+  const [{ initializeApp }, A, F] = await Promise.all([
+    import(base + 'firebase-app.js'), import(base + 'firebase-auth.js'), import(base + 'firebase-firestore.js')]);
+  const app = initializeApp(FIREBASE_CONFIG);
+  const auth = A.getAuth(app);
+  let db;
+  try { db = F.initializeFirestore(app, { localCache: F.persistentLocalCache({ tabManager: F.persistentMultipleTabManager() }) }); }
+  catch { db = F.getFirestore(app); }
+
+  let uid = null, email = null, synced = null, ready = false, unsubs = [];
+  const onErr = e => { console.error(e); setCloudStatus('err', 'Lỗi đồng bộ: ' + (e.code || e.message), email); };
+
+  async function push() {
+    if (!uid || !synced) return;
+    const ops = [];
+    for (const [key, col] of COLS) {
+      const before = new Map(synced[key].map(x => [x.id, stable(x)]));
+      const now = new Set();
+      for (const x of data[key]) {
+        now.add(x.id);
+        if (before.get(x.id) !== stable(x)) ops.push(b => b.set(F.doc(db, 'users', uid, col, x.id), clean(x)));
+      }
+      for (const id of before.keys()) if (!now.has(id)) ops.push(b => b.delete(F.doc(db, 'users', uid, col, id)));
+    }
+    if (stable(synced.budgets) !== stable(data.budgets || {}))
+      ops.push(b => b.set(F.doc(db, 'users', uid), { budgets: clean(data.budgets || {}), updatedAt: Date.now() }, { merge: true }));
+    synced = structuredClone(pick(data));
+    if (!ops.length) return;
+    setCloudStatus('busy', 'Đang lưu lên đám mây...', email);
+    for (let i = 0; i < ops.length; i += 450) {
+      const b = F.writeBatch(db); ops.slice(i, i + 450).forEach(f => f(b)); await b.commit();
+    }
+    setCloudStatus('ok', 'Đã đồng bộ. Dữ liệu tự cập nhật trên mọi thiết bị đăng nhập cùng tài khoản.', email);
+  }
+  window.cloudPush = () => { if (ready) push().catch(onErr); };
+
+  // Lần đầu đăng nhập trên thiết bị: đám mây trống -> tải dữ liệu máy này lên; có dữ liệu -> hỏi gộp
+  async function firstSync(cloud) {
+    const local = structuredClone(data);
+    const cloudEmpty = !cloud.transactions.length && !cloud.wallets.length && !cloud.categories.length;
+    if (cloudEmpty) {
+      synced = { transactions: [], wallets: [], categories: [], budgets: {} };
+      ready = true;
+      await push();
+      toast('Đã tải dữ liệu của máy này lên đám mây');
+      return;
+    }
+    synced = structuredClone(cloud);
+    ready = true;
+    replaceData(structuredClone(cloud));
+    const ids = new Set(cloud.transactions.map(t => t.id));
+    const extra = local.transactions.filter(t => !ids.has(t.id));
+    if (extra.length && await ask(`Thiết bị này có ${extra.length} giao dịch chưa có trên đám mây. Gộp chúng lên đám mây?`, 'Gộp')) {
+      const merged = structuredClone(pick(data));
+      merged.transactions.push(...extra);
+      for (const t of extra) {
+        for (const wid of [t.walletId, t.toWalletId]) if (wid && !merged.wallets.some(w => w.id === wid)) {
+          const w = local.wallets.find(w => w.id === wid); if (w) merged.wallets.push(w);
+        }
+        if (t.categoryId && !merged.categories.some(c => c.id === t.categoryId)) {
+          const c = local.categories.find(c => c.id === t.categoryId); if (c) merged.categories.push(c);
+        }
+      }
+      data = merged; persistLocal(); render();
+      await push();
+      toast(`Đã gộp ${extra.length} giao dịch lên đám mây`);
+    }
+  }
+
+  A.onAuthStateChanged(auth, user => {
+    unsubs.forEach(u => u()); unsubs = []; synced = null; ready = false;
+    uid = user?.uid || null; email = user?.email || null;
+    if (!user) { setCloudStatus('off', 'Chưa đăng nhập — dữ liệu chỉ lưu trên thiết bị này. Đăng nhập để đồng bộ giữa máy tính và điện thoại.', null); return; }
+    setCloudStatus('busy', 'Đang tải dữ liệu từ đám mây...', email);
+    const parts = {};
+    let first = true;
+    const assemble = () => {
+      if (!['tx', 'wallets', 'categories', 'meta'].every(k => k in parts)) return;
+      const cloud = { transactions: parts.tx, wallets: parts.wallets, categories: parts.categories, budgets: parts.meta?.budgets || {} };
+      if (first) { first = false; firstSync(cloud).then(() => setCloudStatus('ok', 'Đã đồng bộ. Dữ liệu tự cập nhật trên mọi thiết bị đăng nhập cùng tài khoản.', email)).catch(onErr); return; }
+      if (!ready) return;
+      synced = structuredClone(cloud);
+      if (stable(pick(data)) !== stable(cloud)) replaceData(structuredClone(cloud));
+    };
+    for (const [, col] of COLS)
+      unsubs.push(F.onSnapshot(F.collection(db, 'users', uid, col), s => { parts[col] = s.docs.map(d => d.data()); assemble(); }, onErr));
+    unsubs.push(F.onSnapshot(F.doc(db, 'users', uid), s => { parts.meta = s.exists() ? s.data() : null; assemble(); }, onErr));
+  });
+
+  window.cloudLogin = async () => {
+    const p = new A.GoogleAuthProvider();
+    try { await A.signInWithPopup(auth, p); }
+    catch (e) {
+      if (['auth/popup-blocked', 'auth/operation-not-supported-in-this-environment'].includes(e.code)) return A.signInWithRedirect(auth, p);
+      if (e.code === 'auth/popup-closed-by-user' || e.code === 'auth/cancelled-popup-request') return;
+      toast(e.code === 'auth/unauthorized-domain'
+        ? 'Tên miền này chưa được phép — thêm nó vào Firebase > Authentication > Settings > Authorized domains'
+        : 'Đăng nhập lỗi: ' + e.code);
+    }
+  };
+  window.cloudLogout = async () => {
+    if (await ask('Đăng xuất? Dữ liệu vẫn còn trên đám mây và trên máy này, nhưng sẽ không đồng bộ nữa.', 'Đăng xuất')) A.signOut(auth);
+  };
+}
+</script>
+</body>
+</html>

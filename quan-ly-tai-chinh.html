@@ -267,10 +267,11 @@
         <form class="row" id="colForm">
           <label class="wide" style="flex:1;min-width:200px">Người trả<select id="cRec"></select></label>
           <label>Số tiền (đ)<input id="cAmount" type="text" inputmode="numeric" placeholder="0" style="width:130px"></label>
+          <label>Tiền nhận vào ví<select id="cWallet"></select></label>
           <label>Ngày<input id="cDate" type="date"></label>
           <button class="btn" type="submit">Ghi</button>
         </form>
-        <p class="muted" style="margin-bottom:0">Khoản cho vay <b>chỉ tính vào tài sản ròng</b>, không làm thay đổi số dư ví. Khi được trả tiền, ghi ở đây để giảm số còn nợ; nếu muốn số tiền đó vào ví, hãy thêm giao dịch <b>Thu</b> hoặc sửa số dư ví.</p>
+        <p class="muted" style="margin-bottom:0">Khoản cho vay <b>chỉ tính vào tài sản ròng</b>, không làm thay đổi số dư ví. Khi được trả, chọn <b>ví nhận tiền</b>: số dư ví tăng, số còn nợ giảm (tài sản ròng giữ nguyên). Chọn "Không ghi vào ví" nếu chỉ muốn giảm số còn nợ.</p>
       </div>
     </div>
     <div class="card" style="margin-top:16px">
@@ -498,6 +499,7 @@ function walletFlow(id) {
     else if (t.type === 'transfer') { if (t.walletId === id) s -= t.amount; if (t.toWalletId === id) s += t.amount; }
   }
   for (const d of data.debts) if (d.walletId === id) s += d.principal;
+  for (const r of data.receivables) for (const p of r.payments) if (p.walletId === id) s += p.amount; // tiền người khác trả nợ
   return s;
 }
 const walletBalance = id => (wal(id).initial || 0) + walletFlow(id);
@@ -559,7 +561,8 @@ function fillSelects() {
     const left = debtLeft(d.id);
     return `<option value="${d.id}">${esc(d.name)}${left ? ' — còn ' + fmt(left) : ' (đã trả hết)'}</option>`;
   }).join(''));
-  keep($('cRec'), [...data.receivables].sort((a, b) => !recLeft(a) - !recLeft(b)).map(r =>
+  keep($('cWallet'), wOpts + '<option value="">Không ghi vào ví</option>');
+  keep($('cRec'),[...data.receivables].sort((a, b) => !recLeft(a) - !recLeft(b)).map(r =>
     `<option value="${r.id}">${esc(r.name)}${recLeft(r) ? ' — còn ' + fmt(recLeft(r)) : ' (đã trả hết)'}</option>`).join(''));
 }
 $('txType').onchange = fillSelects;
@@ -700,6 +703,8 @@ async function delWallet(id) {
   if (n) return toast(`Ví đang có ${n} giao dịch — hãy xóa/chuyển các giao dịch đó trước`);
   const nd = data.debts.filter(d => d.walletId === id).length;
   if (nd) return toast(`Ví đang gắn với ${nd} khoản nợ — hãy sửa khoản nợ đó trước`);
+  const nr = data.receivables.reduce((s, r) => s + r.payments.filter(p => p.walletId === id).length, 0);
+  if (nr) return toast(`Ví đang nhận ${nr} lần thu nợ — hãy xóa các lần thu đó trước`);
   if (data.wallets.length <= 1) return toast('Cần giữ lại ít nhất 1 ví');
   if (!await ask(`Xóa ví "${wal(id).name}"?`)) return;
   data.wallets = data.wallets.filter(w => w.id !== id);
@@ -787,6 +792,8 @@ async function delRec(id) {
 }
 function startCollect(id) {
   $('cRec').value = id;
+  const lastW = localStorage.getItem('pfm-cWallet');
+  if (lastW) $('cWallet').value = lastW === '-' ? '' : lastW;
   showTab('debts'); $('colForm').scrollIntoView({ block: 'center' }); $('cAmount').focus();
 }
 $('colForm').onsubmit = e => {
@@ -794,14 +801,16 @@ $('colForm').onsubmit = e => {
   const r = recOf($('cRec').value), amount = Math.abs(parseAmt($('cAmount').value));
   if (!r) return toast('Hãy thêm khoản cho vay trước');
   if (!amount) return toast('Nhập số tiền được trả');
-  r.payments.push({ id: uid(), date: $('cDate').value || today(), amount });
+  const walletId = $('cWallet').value || null;
+  r.payments.push({ id: uid(), date: $('cDate').value || today(), amount, walletId });
+  localStorage.setItem('pfm-cWallet', walletId || '-');
   $('cAmount').value = ''; $('cDate').value = today();
   save();
-  toast(recLeft(r) ? `Đã ghi — ${r.name} còn nợ ${fmt(recLeft(r))}` : `🎉 ${r.name} đã trả hết`);
+  toast((recLeft(r) ? `Đã ghi — ${r.name} còn nợ ${fmt(recLeft(r))}` : `🎉 ${r.name} đã trả hết`) + (walletId ? ` · ví ${wal(walletId).name} +${fmt(amount)}` : ''));
 };
 async function delCollect(key) {
   const [rid, pid] = key.split(':'), r = recOf(rid), p = r?.payments.find(p => p.id === pid);
-  if (!p || !await ask(`Xóa lần ${r.name} trả ${fmt(p.amount)} ngày ${dmy(p.date)}?`)) return;
+  if (!p || !await ask(`Xóa lần ${r.name} trả ${fmt(p.amount)} ngày ${dmy(p.date)}?` + (p.walletId ? ` Ví ${wal(p.walletId).name} sẽ bị trừ lại ${fmt(p.amount)}.` : ''))) return;
   r.payments = r.payments.filter(x => x.id !== pid);
   save();
 }
@@ -814,7 +823,7 @@ function renderRecs() {
     const got = recGot(r), left = recLeft(r), pct = Math.min(100, got / r.amount * 100);
     const overdue = left && r.due && r.due < today();
     const hist = [...r.payments].sort((a, b) => b.date.localeCompare(a.date)).map(p =>
-      `<span style="white-space:nowrap">${dmy(p.date).slice(0, 5)}: +${fmt(p.amount)}<button class="link" style="padding:0 4px" title="Xóa lần trả này" data-act="rpdel" data-id="${r.id}:${p.id}">×</button></span>`).join(' · ');
+      `<span style="white-space:nowrap">${dmy(p.date).slice(0, 5)}: +${fmt(p.amount)}${p.walletId ? ' → ' + esc(wal(p.walletId).name) : ''}<button class="link" style="padding:0 4px" title="Xóa lần trả này" data-act="rpdel" data-id="${r.id}:${p.id}">×</button></span>`).join(' · ');
     return `<tr style="${left ? '' : 'opacity:.6'}">
       <td><b>${esc(r.name)}</b>${left ? '' : ' <span class="pill" style="background:#dcfce7;color:#166534">Đã trả hết</span>'}${overdue ? ' <span class="pill" style="background:#fee2e2;color:#991b1b">Quá hạn</span>' : ''}
         <div class="muted" style="font-size:11px;margin-top:2px">Cho vay ${fmt(r.amount)} · ${dmy(r.date)}${r.due ? ' · hẹn ' + dmy(r.due) : ''}${r.note ? ' · ' + esc(r.note) : ''}</div>
@@ -1038,6 +1047,7 @@ function snapshotAt(D) {
     if (d.walletId) bal += d.principal; // tiền vay đã nhận vào ví
     debt += Math.max(0, d.principal - (d.paidBefore || 0) - debtPays(d.id).filter(t => t.date <= D).reduce((s, t) => s + t.amount, 0));
   }
+  for (const r of data.receivables) for (const p of r.payments) if (p.walletId && p.date <= D) bal += p.amount;
   for (const r of data.receivables) if ((r.date || '') <= D)
     rec += Math.max(0, r.amount - (r.receivedBefore || 0) - r.payments.filter(p => p.date <= D).reduce((s, p) => s + p.amount, 0));
   return { bal, rec, debt, assets: bal + rec, net: bal + rec - debt };
@@ -1252,6 +1262,7 @@ $('cloudBadge').onclick = () => { showTab('settings'); window.scrollTo(0, 0); };
 $('cloudLogin').onclick = () => window.cloudLogin?.();
 $('cloudLogout').onclick = () => window.cloudLogout?.();
 render();
+{ const lastW = localStorage.getItem('pfm-cWallet'); if (lastW) $('cWallet').value = lastW === '-' ? '' : lastW; if (!$('cWallet').value && lastW !== '-') $('cWallet').selectedIndex = 0; }
 setCloudStatus(...lastCloud);
 </script>
 
